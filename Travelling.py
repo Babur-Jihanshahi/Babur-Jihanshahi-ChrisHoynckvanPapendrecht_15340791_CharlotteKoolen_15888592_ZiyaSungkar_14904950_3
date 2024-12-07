@@ -196,8 +196,21 @@ def switch(cor1, cor2, cits):
 
     return cits 
 
+def linear_cooling(T_0, T_min, k):
+    return T_0 - k*(T_0 - T_min)/ITERATIONS
 
-def mainloop(cities, cities_cor, seed):
+def accept(dist_i, dist_j, T_k, seed):
+    if dist_j <= dist_i:
+        return True
+    prob_accept = np.exp(-(dist_j - dist_i)/T_k)
+    np.random.seed(seed)
+    if np.random.rand() < prob_accept:
+        print(f"accepted with probabiltiy {prob_accept}, difference in distance {dist_j - dist_i}\n Tk value {T_k}")
+        return True
+    return False
+
+
+def mainloop(cities, cities_cor, T_0, T_min, seed):
     """
     Perform a single optimization loop for the TSP problem.
 
@@ -218,7 +231,8 @@ def mainloop(cities, cities_cor, seed):
     best_dist = total_dist
     best_route = cities
 
-    for _ in range(ITERATIONS):
+    for l in range(ITERATIONS):
+        T_k = linear_cooling(T_0, T_min, l)
         all_dists.append(total_dist)
         seed += 1
         city1, city2 = pick_cities(len(cities) - 1, seed)
@@ -231,10 +245,8 @@ def mainloop(cities, cities_cor, seed):
         
         # Perform the swap if it improves the distance
         # insert cooling scheme if distance is worse. 
-        if new_dist < old_dist:
-
-            
-
+        seed+=1
+        if accept(old_dist, new_dist, T_k, seed):
             stagnating = 0
             # print(f"cities switch = {cities[city1], cities[city2]}")
             switch(city1, city2, cities)
@@ -255,7 +267,7 @@ def mainloop(cities, cities_cor, seed):
     return all_dists, best_route, best_dist
 
 
-def multiple_iteations(cities, cities_cor, num_runs, seed):
+def multiple_iteations(cities, cities_cor, num_runs, T_0, T_min, seed):
     """
     Run multiple iterations of a TSP optimization to find the best route.
 
@@ -282,7 +294,7 @@ def multiple_iteations(cities, cities_cor, num_runs, seed):
         cities.append(cities[0])
 
         # do a run, compute all distances in an iteration
-        all_dists, best_route, best_dist = mainloop(cities, cities_cor, seed)
+        all_dists, best_route, best_dist = mainloop(cities, cities_cor, T_0, T_min, seed)
         all_dists_from_runs.append(all_dists)
 
         # update overall best distance if a new low is computed
@@ -305,7 +317,11 @@ def main():
     num_runs = 10
     orig_seed = 33
 
-    beste_overall_dist, beste_overall_route, distances =  multiple_iteations(cities, cities_cor, num_runs, orig_seed)
+    # vary with these values to get different stepsizes
+    T_0 = 10
+    T_min = 0.005
+
+    beste_overall_dist, beste_overall_route, distances =  multiple_iteations(cities, cities_cor, num_runs, T_0, T_min, orig_seed)
     # cities = [1, 2, 3, 4, 5]
     # cities_cor = [(0, 4), (3, 5), (6, 2), (3,3), (2, 0)]
     visualize.visualize_route(beste_overall_route, cities_cor)
