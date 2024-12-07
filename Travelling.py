@@ -1,6 +1,41 @@
 import numpy as np
 import visualize
+import os
+from multiprocessing import Pool
 
+def parse_optimal_tour(file_path):
+    """
+    Reads a .txt file formatted as a TSP tour and extracts the numbers under TOUR_SECTION into a list.
+
+    Parameters:
+        file_path (str): Path to the .txt file.
+    
+    Returns:
+        list: A list of integers representing the tour.
+    """
+    numbers = []
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        
+        # Look for the start of the TOUR_SECTION
+        in_tour_section = False
+        for line in lines:
+            stripped_line = line.strip()
+            
+            if stripped_line == "TOUR_SECTION":
+                in_tour_section = True
+                continue
+            
+            # Stop reading if the section ends with "-1"
+            if stripped_line == "-1":
+                break
+            
+            # If in TOUR_SECTION, collect numbers
+            if in_tour_section:
+                if stripped_line.isdigit():
+                    numbers.append(int(stripped_line))
+    
+    return numbers
 
 def parse_tsp_data(configuration):
     """
@@ -94,6 +129,8 @@ def diff_dist(switch1, switch2, cities_cor, cities):
     idx2 = cities[switch2] - 1
 
     # do minus one to get from city name to index -> index starts at 0 and cityname at 1
+
+    # this can't be the case anymore as index 0 can't ever be picked
     if switch1 != 0:
         old_prev_cor1 = cities_cor[cities[switch1 - 1] - 1]
         neighbours1.append(cities[switch1 - 1])
@@ -102,6 +139,7 @@ def diff_dist(switch1, switch2, cities_cor, cities):
         old_prev_cor1 = cities_cor[cities[n - 1] - 1]
         neighbours1.append(cities[n - 1])
 
+    # this can't be the case anymore because index 0 can't be picked 
     if switch2 != 0:
         old_prev_cor2 = cities_cor[cities[switch2 - 1] - 1]
         neighbours2.append(cities[switch2 - 1])
@@ -149,9 +187,10 @@ def pick_cities(length, seed=None):
         np.random.seed(seed)
 
     # Randomly pick the first index
-    idx1 = np.random.randint(0, length)
+    idx1 = np.random.randint(1, length)
 
     # Exclude adjacent indexes
+    # this will never be happen as first index is currently fixed
     if idx1 == 0: 
         previdx = length-1
     else:
@@ -161,11 +200,14 @@ def pick_cities(length, seed=None):
     else:
         nextidx = idx1+1
     
-    all_indices = np.arange(length)
+    all_indices = np.arange(1, length)
     possible_indexes = all_indices[(all_indices != previdx) & (all_indices != idx1) & (all_indices != nextidx)]
 
     # Randomly pick the second index from the remaining options
     idx2 = np.random.choice(possible_indexes)
+
+    assert idx1 != 0, "idx1 should not be 0"
+    assert idx2 != 0, "idx2 should not be 0"
 
     return idx1, idx2
 
@@ -205,12 +247,12 @@ def accept(dist_i, dist_j, T_k, seed):
     prob_accept = np.exp(-(dist_j - dist_i)/T_k)
     np.random.seed(seed)
     if np.random.rand() < prob_accept:
-        print(f"accepted with probabiltiy {prob_accept}, difference in distance {dist_j - dist_i}\n Tk value {T_k}")
+        # print(f"accepted with probabiltiy {prob_accept}, difference in distance {dist_j - dist_i}\n Tk value {T_k}")
         return True
     return False
 
 
-def mainloop(cities, cities_cor, T_0, T_min, seed):
+def mainloop(parameters):
     """
     Perform a single optimization loop for the TSP problem.
 
@@ -225,9 +267,10 @@ def mainloop(cities, cities_cor, T_0, T_min, seed):
             best_route (list): Best route found during the loop.
             best_dist (float): Shortest distance found during the loop.
     """
+
+    cities, cities_cor, T_0, T_min, iteration, seed = parameters
     total_dist = total_length(cities, cities_cor)
     all_dists = []
-    stagnating = 0
     best_dist = total_dist
     best_route = cities
 
@@ -247,27 +290,18 @@ def mainloop(cities, cities_cor, T_0, T_min, seed):
         # insert cooling scheme if distance is worse. 
         seed+=1
         if accept(old_dist, new_dist, T_k, seed):
-            stagnating = 0
-            # print(f"cities switch = {cities[city1], cities[city2]}")
-            switch(city1, city2, cities)
-            # print(cities)
+            cities = switch(city1, city2, cities)
             total_dist += new_dist - old_dist
 
-            best_dist = total_dist
-            best_route = cities
-            # print(f"old distance: {old_dist}, new distance {new_dist}")
-            # print(f"new total distance: {total_dist}")
-        else:
-            stagnating += 1
-
-            # if no improvement is made for 10000 runs, return. 
-            # if stagnating == 10000:
-                # return cities, total_dist
+            # save the best found route so far
+            if total_dist <= best_dist:
+                best_dist = total_dist
+                best_route = cities[:]
     
-    return all_dists, best_route, best_dist
+    return all_dists, best_route, best_dist, iteration
 
 
-def multiple_iteations(cities, cities_cor, num_runs, T_0, T_min, seed):
+def multiple_iteations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     """
     Run multiple iterations of a TSP optimization to find the best route.
 
@@ -280,51 +314,95 @@ def multiple_iteations(cities, cities_cor, num_runs, T_0, T_min, seed):
     Returns:
         tuple: (best distance, best route, distances from all runs).
     """
+    # overall_best_route = []
+    # overall_best_dist = np.inf
+
+    # all_dists_from_runs = []
+    # for i in range(num_runs):
+    #     print(f"Starting iteration {i}")
+    #     # ensure reproducibility
+    #     seed += 1
+        
+    #     np.random.seed(seed)
+    #     np.random.shuffle(shuffle_cities)
+
+    #     cities = [1] + shuffle_cities + [1]
+
+    #     # do a run, compute all distances in an iteration
+    #     all_dists, best_route, best_dist = mainloop(cities, cities_cor, T_0, T_min, seed)
+    #     all_dists_from_runs.append(all_dists)
+
+    #     # update overall best distance if a new low is computed
+    #     if best_dist < overall_best_dist:
+    #         overall_best_dist = best_dist
+    #         overall_best_route = best_route[:]
+
+    #     print(f"finished iteration {i}, found route with distance {best_dist}")
+
+    # distt = total_length(overall_best_route, cities_cor)
+    # print(f"found route with distance: {overall_best_dist}, actual dist {distt} \n route: {overall_best_route}")
+
+    # return overall_best_dist, overall_best_route, all_dists_from_runs
     overall_best_route = []
     overall_best_dist = np.inf
-
+    pars = []
+    
     all_dists_from_runs = []
     for i in range(num_runs):
         print(f"Starting iteration {i}")
         # ensure reproducibility
         seed += 1
+        
         np.random.seed(seed)
-        np.random.shuffle(cities)
+        np.random.shuffle(shuffle_cities)
 
-        cities.append(cities[0])
+        cities = [1] + shuffle_cities + [1]
 
-        # do a run, compute all distances in an iteration
-        all_dists, best_route, best_dist = mainloop(cities, cities_cor, T_0, T_min, seed)
-        all_dists_from_runs.append(all_dists)
+        parameters = (cities, cities_cor, T_0, T_min, i, seed)
+        pars.append(parameters)
 
-        # update overall best distance if a new low is computed
-        if best_dist < overall_best_dist:
-            overall_best_dist = best_dist
-            overall_best_route = best_route[:]
+        
+    
+    with Pool(PROCESSES) as pool:
+        assert PROCESSES < os.cpu_count(), "Lower the number of processes (PROCESSES)"
+        print(f"Starting parallel execution for linear convergence")
+        for res in pool.imap_unordered(mainloop, pars):
+            all_dists, best_route, best_dist, iteration = res
+            all_dists_from_runs.append(all_dists)
 
-        print(f"finished iteration {i}, found route with distance {best_dist}")
+            # update overall best distance if a new low is computed
+            if best_dist < overall_best_dist:
+                overall_best_dist = best_dist
+                overall_best_route = best_route[:]
+        
+            
+            print(f"finished iteration {iteration}, found route with distance {best_dist}")
 
     distt = total_length(overall_best_route, cities_cor)
     print(f"found route with distance: {overall_best_dist}, actual dist {distt} \n route: {overall_best_route}")
 
     return overall_best_dist, overall_best_route, all_dists_from_runs
 
-ITERATIONS = 100000
+ITERATIONS = 5000000
+PROCESSES=10
 def main():
-    cities, cities_cor = parse_tsp_data("TSP-Configurations/eil51.tsp.txt")
+    cities, cities_cor = parse_tsp_data("TSP-Configurations/a280.tsp.txt")
+    opt_tour = parse_optimal_tour("TSP-Configurations/a280.opt.tour.txt")
+    opt_tour.append(1)
 
     # adjust number of runs to something else
-    num_runs = 10
+    num_runs = 5
     orig_seed = 33
-
+    shuffle_cities = cities[1:]
     # vary with these values to get different stepsizes
-    T_0 = 10
-    T_min = 0.005
+    T_0 = 85
+    T_min = 0.85
 
-    beste_overall_dist, beste_overall_route, distances =  multiple_iteations(cities, cities_cor, num_runs, T_0, T_min, orig_seed)
+    beste_overall_dist, beste_overall_route, distances =  multiple_iteations(shuffle_cities, cities_cor, num_runs, T_0, T_min, orig_seed)
+    print(f"optimal tour has distance {total_length(opt_tour, cities_cor)}")
     # cities = [1, 2, 3, 4, 5]
     # cities_cor = [(0, 4), (3, 5), (6, 2), (3,3), (2, 0)]
-    visualize.visualize_route(beste_overall_route, cities_cor)
+    visualize.visualize_route(beste_overall_route, opt_tour, cities_cor)
     visualize.visualize_developing(distances)
 
 if __name__ =="__main__":
