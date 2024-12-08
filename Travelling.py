@@ -241,6 +241,22 @@ def switch(cor1, cor2, cits):
 def linear_cooling(T_0, T_min, k):
     return T_0 - k*(T_0 - T_min)/ITERATIONS
 
+def exponential_cooling(T_0, T_min, alpha, t):
+    """
+    Exponential cooling schedule.
+
+    Parameters:
+    T_0: Initial temperature.
+    T_min: Minimum temperature (stopping criterion).
+    alpha: Cooling rate (0 < alpha < 1).
+    t: Current iteration number.
+
+    Returns:
+    Updated temperature.
+    """
+    T = T_0 * (alpha ** t)
+    return max(T, T_min)  # Temperature not below T_min
+
 def accept(dist_i, dist_j, T_k, seed):
     if dist_j <= dist_i:
         return True
@@ -273,9 +289,16 @@ def mainloop(parameters):
     all_dists = []
     best_dist = total_dist
     best_route = cities
+    alpha = 0.5 # should be between 0 < alpha < 1 for exponential cooling
 
     for l in range(ITERATIONS):
-        T_k = linear_cooling(T_0, T_min, l)
+        if EXPONENTIAL_COOLING:
+            T_k = exponential_cooling(T_0, T_min, alpha, l)
+        elif LINEAR_COOLING:
+            T_k = linear_cooling(T_0, T_min, l)
+        elif LOGARITHMIC_COOLING:
+            print("add logarithmic function") # add function here
+
         all_dists.append(total_dist)
         seed += 1
         city1, city2 = pick_cities(len(cities) - 1, seed)
@@ -301,7 +324,7 @@ def mainloop(parameters):
     return all_dists, best_route, best_dist, iteration
 
 
-def multiple_iteations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
+def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     """
     Run multiple iterations of a TSP optimization to find the best route.
 
@@ -383,8 +406,13 @@ def multiple_iteations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
 
     return overall_best_dist, overall_best_route, all_dists_from_runs
 
-ITERATIONS = 5000000
-PROCESSES=10
+# ITERATIONS = 5000000
+ITERATIONS = 5000 # lowered this to test the results for visualization
+PROCESSES=2 # adjust this to more
+EXPONENTIAL_COOLING = True
+LINEAR_COOLING = False
+LOGARITHMIC_COOLING = False
+
 def main():
     cities, cities_cor = parse_tsp_data("TSP-Configurations/a280.tsp.txt")
     opt_tour = parse_optimal_tour("TSP-Configurations/a280.opt.tour.txt")
@@ -394,16 +422,35 @@ def main():
     num_runs = 5
     orig_seed = 33
     shuffle_cities = cities[1:]
-    # vary with these values to get different stepsizes
-    T_0 = 85
-    T_min = 0.85
 
-    beste_overall_dist, beste_overall_route, distances =  multiple_iteations(shuffle_cities, cities_cor, num_runs, T_0, T_min, orig_seed)
-    print(f"optimal tour has distance {total_length(opt_tour, cities_cor)}")
-    # cities = [1, 2, 3, 4, 5]
-    # cities_cor = [(0, 4), (3, 5), (6, 2), (3,3), (2, 0)]
-    visualize.visualize_route(beste_overall_route, opt_tour, cities_cor)
-    visualize.visualize_developing(distances)
+    # vary with these values to get different stepsizes
+    T_0_values = [85, 100]  # change T_0 values later
+    T_min_values = [0.85, 1.00]  # change T_min values later
+    all_results = []
+
+    for T_0 in T_0_values:
+        for T_min in T_min_values:
+            print(f"Running with T_0 = {T_0}, T_min = {T_min}")
+            best_overall_dist, best_overall_route, distances = multiple_iterations(
+                shuffle_cities, cities_cor, num_runs, T_0, T_min, orig_seed
+            )
+            
+            # Add distances, label, and best route to results
+            all_results.append({
+                "distances": distances,
+                "label": f"T_0={T_0}, T_min={T_min}",
+                "best_route": best_overall_route,
+                "best_distance": best_overall_dist
+            })
+
+    for result in all_results:
+        label = result["label"]
+        best_distance = result["best_distance"]
+        print(f"For {label}: Best Distance = {best_distance}")
+
+    # Visualize all results
+    visualize.visualize_developing_multiple_lines(all_results)
+    visualize.visualize_route(best_overall_route, opt_tour, cities_cor)
 
 if __name__ =="__main__":
     main()

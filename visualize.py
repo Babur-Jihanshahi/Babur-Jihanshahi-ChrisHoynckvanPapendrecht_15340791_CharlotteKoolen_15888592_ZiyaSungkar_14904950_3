@@ -46,27 +46,53 @@ def visualize_route(cities, opt_tour, coordinates):
     # Display the plot
     plt.show()
 
-def visualize_developing(all_distances):
-    sort_on_index = np.array(all_distances).T
-    means = np.mean(sort_on_index, axis=1)
-    variances = np.var(sort_on_index, axis=1)
+# def visualize_developing(all_distances):
+#     sort_on_index = np.array(all_distances).T
+#     means = np.mean(sort_on_index, axis=1)
+#     variances = np.var(sort_on_index, axis=1)
 
-    plt.figure(figsize=(4,3))
-    num_iterations = len(sort_on_index)
-    iters = np.linspace(0, num_iterations, num_iterations)
-    plt.plot(iters, means, label="No Cooling Scheme")
+#     plt.figure(figsize=(4,3))
+#     num_iterations = len(sort_on_index)
+#     iters = np.linspace(0, num_iterations, num_iterations)
+#     plt.plot(iters, means, label="No Cooling Scheme")
 
-    stdevv =  np.sqrt(variances) 
-    lower_bound = np.array(means) - stdevv
-    upper_bound = np.array(means) + stdevv
-    plt.fill_between(iters, lower_bound, upper_bound, alpha=0.2)
+#     stdevv =  np.sqrt(variances) 
+#     lower_bound = np.array(means) - stdevv
+#     upper_bound = np.array(means) + stdevv
+#     plt.fill_between(iters, lower_bound, upper_bound, alpha=0.2)
 
-    # possibly use a logarithmic scale
-    # plt.xscale("log")
-    plt.xlim(-100, num_iterations)
+#     # possibly use a logarithmic scale
+#     # plt.xscale("log")
+#     plt.xlim(-100, num_iterations)
+#     plt.grid()
+#     plt.legend()
+#     plt.title("Mean distance of calculated route")
+#     plt.ylabel("Distance")
+#     plt.xlabel("Iteration")
+#     plt.show()
+
+def visualize_developing_multiple_lines(all_results):
+
+    plt.figure(figsize=(8, 6))
+
+    for result in all_results:
+        distances = result["distances"]
+        label = result["label"]
+        sort_on_index = np.array(distances).T
+        means = np.mean(sort_on_index, axis=1)
+        variances = np.var(sort_on_index, axis=1)
+        num_iterations = len(sort_on_index)
+        iters = np.linspace(0, num_iterations, num_iterations)
+        plt.plot(iters, means, label=label)
+        stdevv = np.sqrt(variances)
+        lower_bound = means - stdevv
+        upper_bound = means + stdevv
+        plt.fill_between(iters, lower_bound, upper_bound, alpha=0.2)
+
+    plt.xlim(0, num_iterations)
     plt.grid()
     plt.legend()
-    plt.title("Mean distance of calculated route")
+    plt.title("Mean Distance of Calculated Routes")
     plt.ylabel("Distance")
     plt.xlabel("Iteration")
     plt.show()
