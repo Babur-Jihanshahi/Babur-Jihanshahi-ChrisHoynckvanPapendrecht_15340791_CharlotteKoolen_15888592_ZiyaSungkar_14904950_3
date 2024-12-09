@@ -257,7 +257,7 @@ def exponential_cooling(T_0, T_min, alpha, t):
     T = T_0 * (alpha ** t)
     return max(T, T_min)  # Temperature not below T_min
 
-def logarithmic_cooling(T_0, T_min, k):
+def logarithmic_cooling(T_0, T_min, k, alpha=0.7):
     """
     Logarithmic cooling schedule 
 
@@ -265,12 +265,12 @@ def logarithmic_cooling(T_0, T_min, k):
         T_0 (float): Initial temperature
         T_min (float): Minimum temperature threshold
         k (int): current iteration number
+        alpha (float): Cooling speed parameter (0 < alpha <= 1)
 
     Returns:
     float: Updated temperature based on logarithmic schedule  
     """
-    d = 1   # cooling rate control parameter
-    T = T_0 / np.log(k + d)
+    T =(alpha * T_0) / np.log(k + 2)
     return max(T, T_min)
 
 def accept(dist_i, dist_j, T_k, seed):
@@ -313,7 +313,7 @@ def mainloop(parameters):
         elif LINEAR_COOLING:
             T_k = linear_cooling(T_0, T_min, l)
         elif LOGARITHMIC_COOLING:
-            T_k = logarithmic_cooling(T_0, T_min, l+1)
+            T_k = logarithmic_cooling(T_0, T_min, l, alpha=1.0)
 
         all_dists.append(total_dist)
         seed += 1
