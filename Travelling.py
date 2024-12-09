@@ -354,35 +354,6 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     Returns:
         tuple: (best distance, best route, distances from all runs).
     """
-    # overall_best_route = []
-    # overall_best_dist = np.inf
-
-    # all_dists_from_runs = []
-    # for i in range(num_runs):
-    #     print(f"Starting iteration {i}")
-    #     # ensure reproducibility
-    #     seed += 1
-        
-    #     np.random.seed(seed)
-    #     np.random.shuffle(shuffle_cities)
-
-    #     cities = [1] + shuffle_cities + [1]
-
-    #     # do a run, compute all distances in an iteration
-    #     all_dists, best_route, best_dist = mainloop(cities, cities_cor, T_0, T_min, seed)
-    #     all_dists_from_runs.append(all_dists)
-
-    #     # update overall best distance if a new low is computed
-    #     if best_dist < overall_best_dist:
-    #         overall_best_dist = best_dist
-    #         overall_best_route = best_route[:]
-
-    #     print(f"finished iteration {i}, found route with distance {best_dist}")
-
-    # distt = total_length(overall_best_route, cities_cor)
-    # print(f"found route with distance: {overall_best_dist}, actual dist {distt} \n route: {overall_best_route}")
-
-    # return overall_best_dist, overall_best_route, all_dists_from_runs
     overall_best_route = []
     overall_best_dist = np.inf
     pars = []
@@ -402,13 +373,18 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
         pars.append(parameters)
 
         
-    
+    best_distances_runs = []
+    best_routes_runs = []
+
     with Pool(PROCESSES) as pool:
         assert PROCESSES < os.cpu_count(), "Lower the number of processes (PROCESSES)"
         print(f"Starting parallel execution for linear convergence")
         for res in pool.imap_unordered(mainloop, pars):
             all_dists, best_route, best_dist, iteration = res
             all_dists_from_runs.append(all_dists)
+
+            best_routes_runs.append(best_route)
+            best_distances_runs.append(best_dist)
 
             # update overall best distance if a new low is computed
             if best_dist < overall_best_dist:
@@ -421,15 +397,15 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     distt = total_length(overall_best_route, cities_cor)
     print(f"found route with distance: {overall_best_dist}, actual dist {distt} \n route: {overall_best_route}")
 
-    return overall_best_dist, overall_best_route, all_dists_from_runs
+    return overall_best_dist, overall_best_route, all_dists_from_runs, best_distances_runs, best_routes_runs
 
-ITERATIONS = 5000000
+ITERATIONS = 10000000
 # ITERATIONS = 5000 # lowered this to test the results for visualization
 # PROCESSES=2 # adjust this to more
 PROCESSES=10 # adjust this to more
-EXPONENTIAL_COOLING = True
-LINEAR_COOLING = False
-LOGARITHMIC_COOLING = True
+EXPONENTIAL_COOLING = False
+LINEAR_COOLING = True
+LOGARITHMIC_COOLING = False
 
 if EXPONENTIAL_COOLING:
     cooling_strategy = "Exponential"
@@ -444,21 +420,28 @@ def main():
     opt_tour.append(1)
 
     # adjust number of runs to something else
-    num_runs = 5
+    num_runs = 10
     orig_seed = 33
     shuffle_cities = cities[1:]
 
     # vary with these values to get different stepsizes
     T_0_values = [50, 200]  # change T_0 values later
     T_min_values = [0.85, 1.0]  # change T_min values later
+
+    # values exponential
     T_0_values = [100, 90]  # change T_0 values later
     T_min_values = [1.2, 0.1]  # change T_min values later
+
+    # values linear
+    T_0_values = [100, 50]  # change T_0 values later
+    T_min_values = [5, 0.1]  # change T_min values later
+
     all_results = []
 
     for T_0 in T_0_values:
         for T_min in T_min_values:
             print(f"Running with T_0 = {T_0}, T_min = {T_min}")
-            best_overall_dist, best_overall_route, distances = multiple_iterations(
+            best_overall_dist, best_overall_route, distances, best_distances_its, best_routes_its = multiple_iterations(
                 shuffle_cities, cities_cor, num_runs, T_0, T_min, orig_seed
             )
             
@@ -466,12 +449,14 @@ def main():
             all_results.append({
                 "label": f"T_0={T_0}, T_min={T_min}",
                 "best_distance": best_overall_dist,
-                "distances": distances
+                "distances": distances,
+                "best_distances_runs": best_distances_its,
+                "best_routes_runs": best_routes_its
             })
 
             # Convert to DataFrame
             df = pd.DataFrame(all_results)
-            df = df[['label', 'best_distance']]
+            df = df[['label', 'best_distance', 'best_distances_runs']]
             csv_filename = f"best_dist_{cooling_strategy}.csv"
             df.to_csv(csv_filename, index=False)
 
@@ -482,6 +467,7 @@ def main():
                 print(f"For {label}: Best Distance = {best_distance}")
 
     # Visualize all results
+    print(f"Opitmal tour is: {total_length(opt_tour, cities_cor)}")
     visualize.visualize_developing_multiple_lines(all_results)
     visualize.visualize_route(best_overall_route, opt_tour, cities_cor)
 
