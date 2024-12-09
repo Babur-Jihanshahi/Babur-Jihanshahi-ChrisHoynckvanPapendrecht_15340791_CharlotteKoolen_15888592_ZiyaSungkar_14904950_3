@@ -242,23 +242,25 @@ def switch(cor1, cor2, cits):
 def linear_cooling(T_0, T_min, k):
     return T_0 - k*(T_0 - T_min)/ITERATIONS
 
-def exponential_cooling(T_0, T_min, alpha, t):
+def exponential_cooling(T_0, T_min, t, ITERATIONS):
     """
-    Exponential cooling schedule.
+    Exponential cooling schedule with calculated alpha.
 
     Parameters:
     T_0: Initial temperature.
     T_min: Minimum temperature (stopping criterion).
-    alpha: Cooling rate (0 < alpha < 1).
     t: Current iteration number.
+    ITERATIONS: Total number of iterations.
 
     Returns:
     Updated temperature.
     """
+    alpha = (T_min / T_0) ** (1 / ITERATIONS)
     T = T_0 * (alpha ** t)
-    return max(T, T_min)  # Temperature not below T_min
 
-def logarithmic_cooling(T_0, T_min, k, alpha=0.7):
+    return (T) 
+
+def logarithmic_cooling(T_0, T_min, k, ITERATIONS):
     """
     Logarithmic cooling schedule 
 
@@ -271,8 +273,11 @@ def logarithmic_cooling(T_0, T_min, k, alpha=0.7):
     Returns:
     float: Updated temperature based on logarithmic schedule  
     """
+    alpha = (T_min * np.log(ITERATIONS + 2)) / T_0
     T =(alpha * T_0) / np.log(k + 2)
-    return max(T, T_min)
+
+    return (T)
+    #return max(T, T_min) # not necessary anymore
 
 def accept(dist_i, dist_j, T_k, seed):
     if dist_j <= dist_i:
@@ -300,21 +305,22 @@ def mainloop(parameters):
             best_route (list): Best route found during the loop.
             best_dist (float): Shortest distance found during the loop.
     """
-
-    cities, cities_cor, T_0, T_min, iteration, seed = parameters
+    cities, cities_cor, T_0, T_min, iteration, seed, ITERATIONS = parameters
+    
+    # cities, cities_cor, T_0, T_min, iteration, seed = parameters
     total_dist = total_length(cities, cities_cor)
     all_dists = []
     best_dist = total_dist
     best_route = cities
-    alpha = 0.5 # should be between 0 < alpha < 1 for exponential cooling
+    # alpha = 0.5 # should be between 0 < alpha < 1 for exponential cooling
 
     for l in range(ITERATIONS):
         if EXPONENTIAL_COOLING:
-            T_k = exponential_cooling(T_0, T_min, alpha, l)
+            T_k = exponential_cooling(T_0, T_min, l, ITERATIONS)
         elif LINEAR_COOLING:
             T_k = linear_cooling(T_0, T_min, l)
         elif LOGARITHMIC_COOLING:
-            T_k = logarithmic_cooling(T_0, T_min, l, alpha=1.0)
+            T_k = logarithmic_cooling(T_0, T_min, l, ITERATIONS)
 
         all_dists.append(total_dist)
         seed += 1
@@ -369,7 +375,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
 
         cities = [1] + shuffle_cities + [1]
 
-        parameters = (cities, cities_cor, T_0, T_min, i, seed)
+        parameters = (cities, cities_cor, T_0, T_min, i, seed, ITERATIONS)
         pars.append(parameters)
 
         
@@ -400,11 +406,11 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     return overall_best_dist, overall_best_route, all_dists_from_runs, best_distances_runs, best_routes_runs
 
 ITERATIONS = 10000000
-# ITERATIONS = 5000 # lowered this to test the results for visualization
-# PROCESSES=2 # adjust this to more
+#ITERATIONS = 50000 # lowered this to test the results for visualization
+#PROCESSES=2 # adjust this to more
 PROCESSES=10 # adjust this to more
-EXPONENTIAL_COOLING = False
-LINEAR_COOLING = True
+EXPONENTIAL_COOLING = True
+LINEAR_COOLING = False
 LOGARITHMIC_COOLING = False
 
 if EXPONENTIAL_COOLING:
@@ -421,6 +427,7 @@ def main():
 
     # adjust number of runs to something else
     num_runs = 10
+    #num_runs = 1
     orig_seed = 33
     shuffle_cities = cities[1:]
 
