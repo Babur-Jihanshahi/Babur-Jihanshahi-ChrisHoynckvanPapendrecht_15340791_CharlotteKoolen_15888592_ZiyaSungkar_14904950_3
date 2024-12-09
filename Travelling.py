@@ -2,6 +2,7 @@ import numpy as np
 import visualize
 import os
 from multiprocessing import Pool
+import pandas as pd
 
 def parse_optimal_tour(file_path):
     """
@@ -406,12 +407,19 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
 
     return overall_best_dist, overall_best_route, all_dists_from_runs
 
-# ITERATIONS = 5000000
-ITERATIONS = 5000 # lowered this to test the results for visualization
+#ITERATIONS = 5000000
+ITERATIONS = 50000 # lowered this to test the results for visualization
 PROCESSES=2 # adjust this to more
 EXPONENTIAL_COOLING = True
 LINEAR_COOLING = False
 LOGARITHMIC_COOLING = False
+
+if EXPONENTIAL_COOLING:
+    cooling_strategy = "Exponential"
+elif LINEAR_COOLING:
+    cooling_strategy = "Linear"
+elif LOGARITHMIC_COOLING:
+    cooling_strategy = "Logarithmic"
 
 def main():
     cities, cities_cor = parse_tsp_data("TSP-Configurations/a280.tsp.txt")
@@ -424,8 +432,8 @@ def main():
     shuffle_cities = cities[1:]
 
     # vary with these values to get different stepsizes
-    T_0_values = [85, 100]  # change T_0 values later
-    T_min_values = [0.85, 1.00]  # change T_min values later
+    T_0_values = [100, 90]  # change T_0 values later
+    T_min_values = [1.2, 0.1]  # change T_min values later
     all_results = []
 
     for T_0 in T_0_values:
@@ -435,18 +443,24 @@ def main():
                 shuffle_cities, cities_cor, num_runs, T_0, T_min, orig_seed
             )
             
-            # Add distances, label, and best route to results
+            # Add only the best distance and label to results
             all_results.append({
-                "distances": distances,
                 "label": f"T_0={T_0}, T_min={T_min}",
-                "best_route": best_overall_route,
-                "best_distance": best_overall_dist
+                "best_distance": best_overall_dist,
+                "distances": distances
             })
 
-    for result in all_results:
-        label = result["label"]
-        best_distance = result["best_distance"]
-        print(f"For {label}: Best Distance = {best_distance}")
+            # Convert to DataFrame
+            df = pd.DataFrame(all_results)
+            df = df[['label', 'best_distance']]
+            csv_filename = f"best_dist_{cooling_strategy}.csv"
+            df.to_csv(csv_filename, index=False)
+
+            # Print the best distance for each run
+            for result in all_results:
+                label = result["label"]
+                best_distance = result["best_distance"]
+                print(f"For {label}: Best Distance = {best_distance}")
 
     # Visualize all results
     visualize.visualize_developing_multiple_lines(all_results)
