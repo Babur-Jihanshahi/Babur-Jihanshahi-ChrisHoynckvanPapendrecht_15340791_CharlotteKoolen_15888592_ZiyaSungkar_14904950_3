@@ -257,6 +257,22 @@ def exponential_cooling(T_0, T_min, alpha, t):
     T = T_0 * (alpha ** t)
     return max(T, T_min)  # Temperature not below T_min
 
+def logarithmic_cooling(T_0, T_min, k):
+    """
+    Logarithmic cooling schedule 
+
+    Parameters:
+        T_0 (float): Initial temperature
+        T_min (float): Minimum temperature threshold
+        k (int): current iteration number
+
+    Returns:
+    float: Updated temperature based on logarithmic schedule  
+    """
+    d = 1   # cooling rate control parameter
+    T = T_0 / np.log(k + d)
+    return max(T, T_min)
+
 def accept(dist_i, dist_j, T_k, seed):
     if dist_j <= dist_i:
         return True
@@ -297,7 +313,7 @@ def mainloop(parameters):
         elif LINEAR_COOLING:
             T_k = linear_cooling(T_0, T_min, l)
         elif LOGARITHMIC_COOLING:
-            print("add logarithmic function") # add function here
+            T_k = logarithmic_cooling(T_0, T_min, l+1)
 
         all_dists.append(total_dist)
         seed += 1
@@ -407,11 +423,11 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     return overall_best_dist, overall_best_route, all_dists_from_runs
 
 # ITERATIONS = 5000000
-ITERATIONS = 5000 # lowered this to test the results for visualization
-PROCESSES=2 # adjust this to more
-EXPONENTIAL_COOLING = True
+ITERATIONS = 50000 # lowered this to test the results for visualization
+PROCESSES=10 # adjust this to more
+EXPONENTIAL_COOLING = False
 LINEAR_COOLING = False
-LOGARITHMIC_COOLING = False
+LOGARITHMIC_COOLING = True
 
 def main():
     cities, cities_cor = parse_tsp_data("TSP-Configurations/a280.tsp.txt")
@@ -424,8 +440,8 @@ def main():
     shuffle_cities = cities[1:]
 
     # vary with these values to get different stepsizes
-    T_0_values = [85, 100]  # change T_0 values later
-    T_min_values = [0.85, 1.00]  # change T_min values later
+    T_0_values = [50, 200]  # change T_0 values later
+    T_min_values = [0.85, 1.0]  # change T_min values later
     all_results = []
 
     for T_0 in T_0_values:
