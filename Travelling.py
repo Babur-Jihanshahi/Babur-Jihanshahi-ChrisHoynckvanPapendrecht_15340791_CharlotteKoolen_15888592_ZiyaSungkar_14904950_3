@@ -257,7 +257,7 @@ def exponential_cooling(T_0, T_min, alpha, t):
     T = T_0 * (alpha ** t)
     return max(T, T_min)  # Temperature not below T_min
 
-def logarithmic_cooling(T_0, T_min, k, alpha=0.7):
+def logarithmic_cooling(T_0, T_min, k, ITERATIONS):
     """
     Logarithmic cooling schedule 
 
@@ -270,8 +270,35 @@ def logarithmic_cooling(T_0, T_min, k, alpha=0.7):
     Returns:
     float: Updated temperature based on logarithmic schedule  
     """
-    T =(alpha * T_0) / np.log(k + 2)
+    d = 2 
+    alpha = (T_min * np.log(ITERATIONS + d))/T_0
+    T = (alpha * T_0) / np.log(k + d)
     return max(T, T_min)
+
+def find_temperature_parameters(cities_cor, cities, num_samples=100):
+    differences = []
+    min_difference = float('inf')
+
+    # sample random moves:
+    for i in range(num_samples):
+        city1, city2 = pick_cities(len(cities) - 1, seed=i)
+        old_dist, new_dist = diff_dist(city1, city2, cities_cor, cities)
+        diff = new_dist - old_dist
+        if diff > 0:
+            differences.append(diff)
+            min_difference = min(min_difference, diff)
+
+    if not differences:
+        return find_temperature_parameters(cities_cor, cities, num_samples * 2)
+    
+    avg_difference = np.mean(differences)
+    T_0 = -avg_difference / np.log(0.8)
+    T_min = -min_difference / np.log(0.01)
+    print(f"Suggested parameters based on {num_samples} samples:")
+    print(f'T_0: {T_0:.2f} (will accept moves that increases distance by {avg_difference:.2f} with 80% probability)')
+    print(f"T_min: {T_min:.2f} (will accept moves that increase distance by {min_difference:.2f} with 1% probability)")
+    return T_0, T_min
+
 
 def accept(dist_i, dist_j, T_k, seed):
     if dist_j <= dist_i:
@@ -313,7 +340,7 @@ def mainloop(parameters):
         elif LINEAR_COOLING:
             T_k = linear_cooling(T_0, T_min, l)
         elif LOGARITHMIC_COOLING:
-            T_k = logarithmic_cooling(T_0, T_min, l, alpha=1.0)
+            T_k = logarithmic_cooling(T_0, T_min, l)
 
         all_dists.append(total_dist)
         seed += 1
@@ -439,9 +466,12 @@ def main():
     orig_seed = 33
     shuffle_cities = cities[1:]
 
+    initial_solution = [1] + list(shuffle_cities) + [1]
+    base_T0, base_Tmin = find_temperature_parameters(cities_cor, initial_solution)
+
     # vary with these values to get different stepsizes
-    T_0_values = [50, 200]  # change T_0 values later
-    T_min_values = [0.85, 1.0]  # change T_min values later
+    T_0_values = [base_T0 * 0.5, base_T0, base_T0 * 1.5]  # change T_0 values later
+    T_min_values = [base_Tmin, base_Tmin * 2]  # change T_min values later
     all_results = []
 
     for T_0 in T_0_values:
