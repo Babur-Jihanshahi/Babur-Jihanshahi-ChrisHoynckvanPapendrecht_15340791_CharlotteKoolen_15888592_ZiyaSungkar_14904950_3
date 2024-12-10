@@ -282,6 +282,7 @@ def logarithmic_cooling(T_0, T_min, k, ITERATIONS):
 def find_temperature_parameters(cities_cor, cities, num_samples=100):
     differences = []
     min_difference = float('inf')
+    max_difference = float('-inf')
 
     # sample random moves:
     for i in range(num_samples):
@@ -291,6 +292,7 @@ def find_temperature_parameters(cities_cor, cities, num_samples=100):
         if diff > 0:
             differences.append(diff)
             min_difference = min(min_difference, diff)
+            max_difference = max(max_difference, diff)
 
     if not differences:
         return find_temperature_parameters(cities_cor, cities, num_samples * 2)
@@ -430,13 +432,13 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
 
     return overall_best_dist, overall_best_route, all_dists_from_runs, best_distances_runs, best_routes_runs
 
-ITERATIONS = 10000000
+ITERATIONS = 20000000
 #ITERATIONS = 50000 # lowered this to test the results for visualization
 #PROCESSES=2 # adjust this to more
 PROCESSES=10 # adjust this to more
-EXPONENTIAL_COOLING = True
+EXPONENTIAL_COOLING = False
 LINEAR_COOLING = False
-LOGARITHMIC_COOLING = False
+LOGARITHMIC_COOLING = True
 
 if EXPONENTIAL_COOLING:
     cooling_strategy = "Exponential"
@@ -460,16 +462,16 @@ def main():
     base_T0, base_Tmin = find_temperature_parameters(cities_cor, initial_solution)
 
     # vary with these values to get different stepsizes
-    T_0_values = [50, 200]  # change T_0 values later
-    T_min_values = [0.85, 1.0]  # change T_min values later
+    T_0_values = [base_T0 * 0.75, base_T0, base_T0 * 1.25]  # change T_0 values later
+    T_min_values = [base_Tmin * 0.5, base_Tmin]  # change T_min values later
 
     # values exponential
-    T_0_values = [100, 90]  # change T_0 values later
-    T_min_values = [1.2, 0.1]  # change T_min values later
+    # T_0_values = [100, 90]  # change T_0 values later
+    # T_min_values = [1.2, 0.1]  # change T_min values later
 
     # values linear
-    T_0_values = [100, 50]  # change T_0 values later
-    T_min_values = [5, 0.1]  # change T_min values later
+    # T_0_values = [100, 50]  # change T_0 values later
+    # T_min_values = [5, 0.1]  # change T_min values later
 
     all_results = []
 
