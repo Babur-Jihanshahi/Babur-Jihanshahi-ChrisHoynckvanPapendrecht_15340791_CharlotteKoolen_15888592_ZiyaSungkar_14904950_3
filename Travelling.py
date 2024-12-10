@@ -2,6 +2,7 @@ import numpy as np
 import visualize
 import os
 from multiprocessing import Pool
+import pandas as pd
 
 def parse_optimal_tour(file_path):
     """
@@ -241,21 +242,23 @@ def switch(cor1, cor2, cits):
 def linear_cooling(T_0, T_min, k):
     return T_0 - k*(T_0 - T_min)/ITERATIONS
 
-def exponential_cooling(T_0, T_min, alpha, t):
+def exponential_cooling(T_0, T_min, t, ITERATIONS):
     """
-    Exponential cooling schedule.
+    Exponential cooling schedule with calculated alpha.
 
     Parameters:
     T_0: Initial temperature.
     T_min: Minimum temperature (stopping criterion).
-    alpha: Cooling rate (0 < alpha < 1).
     t: Current iteration number.
+    ITERATIONS: Total number of iterations.
 
     Returns:
     Updated temperature.
     """
+    alpha = (T_min / T_0) ** (1 / ITERATIONS)
     T = T_0 * (alpha ** t)
-    return max(T, T_min)  # Temperature not below T_min
+
+    return (T) 
 
 def logarithmic_cooling(T_0, T_min, k, ITERATIONS):
     """
@@ -270,10 +273,11 @@ def logarithmic_cooling(T_0, T_min, k, ITERATIONS):
     Returns:
     float: Updated temperature based on logarithmic schedule  
     """
-    d = 2 
-    alpha = (T_min * np.log(ITERATIONS + d))/T_0
-    T = (alpha * T_0) / np.log(k + d)
-    return max(T, T_min)
+    alpha = (T_min * np.log(ITERATIONS + 2)) / T_0
+    T =(alpha * T_0) / np.log(k + 2)
+
+    return (T)
+    #return max(T, T_min) # not necessary anymore
 
 def find_temperature_parameters(cities_cor, cities, num_samples=100):
     differences = []
@@ -326,21 +330,22 @@ def mainloop(parameters):
             best_route (list): Best route found during the loop.
             best_dist (float): Shortest distance found during the loop.
     """
-
-    cities, cities_cor, T_0, T_min, iteration, seed = parameters
+    cities, cities_cor, T_0, T_min, iteration, seed, ITERATIONS = parameters
+    
+    # cities, cities_cor, T_0, T_min, iteration, seed = parameters
     total_dist = total_length(cities, cities_cor)
     all_dists = []
     best_dist = total_dist
     best_route = cities
-    alpha = 0.5 # should be between 0 < alpha < 1 for exponential cooling
+    # alpha = 0.5 # should be between 0 < alpha < 1 for exponential cooling
 
     for l in range(ITERATIONS):
         if EXPONENTIAL_COOLING:
-            T_k = exponential_cooling(T_0, T_min, alpha, l)
+            T_k = exponential_cooling(T_0, T_min, l, ITERATIONS)
         elif LINEAR_COOLING:
             T_k = linear_cooling(T_0, T_min, l)
         elif LOGARITHMIC_COOLING:
-            T_k = logarithmic_cooling(T_0, T_min, l)
+            T_k = logarithmic_cooling(T_0, T_min, l, ITERATIONS)
 
         all_dists.append(total_dist)
         seed += 1
@@ -380,35 +385,6 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     Returns:
         tuple: (best distance, best route, distances from all runs).
     """
-    # overall_best_route = []
-    # overall_best_dist = np.inf
-
-    # all_dists_from_runs = []
-    # for i in range(num_runs):
-    #     print(f"Starting iteration {i}")
-    #     # ensure reproducibility
-    #     seed += 1
-        
-    #     np.random.seed(seed)
-    #     np.random.shuffle(shuffle_cities)
-
-    #     cities = [1] + shuffle_cities + [1]
-
-    #     # do a run, compute all distances in an iteration
-    #     all_dists, best_route, best_dist = mainloop(cities, cities_cor, T_0, T_min, seed)
-    #     all_dists_from_runs.append(all_dists)
-
-    #     # update overall best distance if a new low is computed
-    #     if best_dist < overall_best_dist:
-    #         overall_best_dist = best_dist
-    #         overall_best_route = best_route[:]
-
-    #     print(f"finished iteration {i}, found route with distance {best_dist}")
-
-    # distt = total_length(overall_best_route, cities_cor)
-    # print(f"found route with distance: {overall_best_dist}, actual dist {distt} \n route: {overall_best_route}")
-
-    # return overall_best_dist, overall_best_route, all_dists_from_runs
     overall_best_route = []
     overall_best_dist = np.inf
     pars = []
@@ -424,17 +400,22 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
 
         cities = [1] + shuffle_cities + [1]
 
-        parameters = (cities, cities_cor, T_0, T_min, i, seed)
+        parameters = (cities, cities_cor, T_0, T_min, i, seed, ITERATIONS)
         pars.append(parameters)
 
         
-    
+    best_distances_runs = []
+    best_routes_runs = []
+
     with Pool(PROCESSES) as pool:
         assert PROCESSES < os.cpu_count(), "Lower the number of processes (PROCESSES)"
         print(f"Starting parallel execution for linear convergence")
         for res in pool.imap_unordered(mainloop, pars):
             all_dists, best_route, best_dist, iteration = res
             all_dists_from_runs.append(all_dists)
+
+            best_routes_runs.append(best_route)
+            best_distances_runs.append(best_dist)
 
             # update overall best distance if a new low is computed
             if best_dist < overall_best_dist:
@@ -447,14 +428,22 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     distt = total_length(overall_best_route, cities_cor)
     print(f"found route with distance: {overall_best_dist}, actual dist {distt} \n route: {overall_best_route}")
 
-    return overall_best_dist, overall_best_route, all_dists_from_runs
+    return overall_best_dist, overall_best_route, all_dists_from_runs, best_distances_runs, best_routes_runs
 
-# ITERATIONS = 5000000
-ITERATIONS = 50000 # lowered this to test the results for visualization
+ITERATIONS = 10000000
+#ITERATIONS = 50000 # lowered this to test the results for visualization
+#PROCESSES=2 # adjust this to more
 PROCESSES=10 # adjust this to more
-EXPONENTIAL_COOLING = False
+EXPONENTIAL_COOLING = True
 LINEAR_COOLING = False
-LOGARITHMIC_COOLING = True
+LOGARITHMIC_COOLING = False
+
+if EXPONENTIAL_COOLING:
+    cooling_strategy = "Exponential"
+elif LINEAR_COOLING:
+    cooling_strategy = "Linear"
+elif LOGARITHMIC_COOLING:
+    cooling_strategy = "Logarithmic"
 
 def main():
     cities, cities_cor = parse_tsp_data("TSP-Configurations/a280.tsp.txt")
@@ -462,7 +451,8 @@ def main():
     opt_tour.append(1)
 
     # adjust number of runs to something else
-    num_runs = 5
+    num_runs = 10
+    #num_runs = 1
     orig_seed = 33
     shuffle_cities = cities[1:]
 
@@ -470,31 +460,49 @@ def main():
     base_T0, base_Tmin = find_temperature_parameters(cities_cor, initial_solution)
 
     # vary with these values to get different stepsizes
-    T_0_values = [base_T0 * 0.5, base_T0, base_T0 * 1.5]  # change T_0 values later
-    T_min_values = [base_Tmin, base_Tmin * 2]  # change T_min values later
+    T_0_values = [50, 200]  # change T_0 values later
+    T_min_values = [0.85, 1.0]  # change T_min values later
+
+    # values exponential
+    T_0_values = [100, 90]  # change T_0 values later
+    T_min_values = [1.2, 0.1]  # change T_min values later
+
+    # values linear
+    T_0_values = [100, 50]  # change T_0 values later
+    T_min_values = [5, 0.1]  # change T_min values later
+
     all_results = []
 
     for T_0 in T_0_values:
         for T_min in T_min_values:
             print(f"Running with T_0 = {T_0}, T_min = {T_min}")
-            best_overall_dist, best_overall_route, distances = multiple_iterations(
+            best_overall_dist, best_overall_route, distances, best_distances_its, best_routes_its = multiple_iterations(
                 shuffle_cities, cities_cor, num_runs, T_0, T_min, orig_seed
             )
             
-            # Add distances, label, and best route to results
+            # Add only the best distance and label to results
             all_results.append({
-                "distances": distances,
                 "label": f"T_0={T_0}, T_min={T_min}",
-                "best_route": best_overall_route,
-                "best_distance": best_overall_dist
+                "best_distance": best_overall_dist,
+                "distances": distances,
+                "best_distances_runs": best_distances_its,
+                "best_routes_runs": best_routes_its
             })
 
-    for result in all_results:
-        label = result["label"]
-        best_distance = result["best_distance"]
-        print(f"For {label}: Best Distance = {best_distance}")
+            # Convert to DataFrame
+            df = pd.DataFrame(all_results)
+            df = df[['label', 'best_distance', 'best_distances_runs']]
+            csv_filename = f"best_dist_{cooling_strategy}.csv"
+            df.to_csv(csv_filename, index=False)
+
+            # Print the best distance for each run
+            for result in all_results:
+                label = result["label"]
+                best_distance = result["best_distance"]
+                print(f"For {label}: Best Distance = {best_distance}")
 
     # Visualize all results
+    print(f"Opitmal tour is: {total_length(opt_tour, cities_cor)}")
     visualize.visualize_developing_multiple_lines(all_results)
     visualize.visualize_route(best_overall_route, opt_tour, cities_cor)
 
