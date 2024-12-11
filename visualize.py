@@ -91,7 +91,7 @@ def visualize_developing_multiple_lines(all_results):
 
 
         # Group the means and variances
-        group_size = 1000
+        group_size = 10
         num_iterations = len(means)
         num_groups = num_iterations // group_size
         grouped_means = means.reshape(-1, group_size).mean(axis=1)

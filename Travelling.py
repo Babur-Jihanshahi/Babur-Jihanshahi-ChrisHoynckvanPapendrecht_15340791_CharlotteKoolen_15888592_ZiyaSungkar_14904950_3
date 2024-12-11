@@ -219,25 +219,13 @@ def switch(cor1, cor2, cits):
     Swap two cities in the route and update the cyclic route.
 
     Args:
-        cor1 (int): Index of the first city to swap.
-        cor2 (int): Index of the second city to swap.
+        cor1 (int): Index of the first connection to swap.
+        cor2 (int): Index of the second connection to swap.
         cits (list): Current route of cities.
 
     Returns:
         list: Updated route after the swap.
     """
-    # switch1 = cits[cor1]
-    # cits[cor1] = cits[cor2]
-
-    # # last index and first index has the same value
-    # if cor1 == 0:
-    #     cits[-1] = cits[cor2]
-    # cits[cor2] = switch1
-
-    # # last index and first index has the same value
-    # if cor2 == 0:
-    #     cits[-1] = switch1
-    
     citscopy = cits[:-1]
 
     if cor1 < cor2:
@@ -250,14 +238,14 @@ def switch(cor1, cor2, cits):
     citietjes = citietjes + [cits[0]]
     return citietjes
 
-def linear_cooling(T_0, T_min, k):
-    value =  T_0 - k*(T_0 - T_min)/ITERATIONS
+def linear_cooling(T_0, T_min, k, iters):
+    value =  T_0 - k*(T_0 - T_min)/iters
     # if value < 3:
     #     return 3
     return value
 
 
-def exponential_cooling(T_0, T_min, t, ITERATIONS):
+def exponential_cooling(T_0, T_min, t, iters):
     """
     Exponential cooling schedule with calculated alpha.
 
@@ -270,12 +258,12 @@ def exponential_cooling(T_0, T_min, t, ITERATIONS):
     Returns:
     Updated temperature.
     """
-    alpha = (T_min / T_0) ** (1 / ITERATIONS)
+    alpha = (T_min / T_0) ** (1 / iters)
     T = T_0 * (alpha ** t)
 
     return (T) 
 
-def logarithmic_cooling(T_0, T_min, k, ITERATIONS):
+def logarithmic_cooling(T_0, T_min, k, iters):
     """
     Logarithmic cooling schedule 
 
@@ -288,13 +276,13 @@ def logarithmic_cooling(T_0, T_min, k, ITERATIONS):
     Returns:
     float: Updated temperature based on logarithmic schedule  
     """
-    alpha = (T_min * np.log(ITERATIONS + 2)) / T_0
+    alpha = (T_min * np.log(iters + 2)) / T_0
     T =(alpha * T_0) / np.log(k + 2)
 
     return (T)
     #return max(T, T_min) # not necessary anymore
 
-def find_temperature_parameters(cities_cor, cities, num_samples=100):
+def find_temperature_parameters(cities_cor, cities, num_samples=10000):
     differences = []
     min_difference = float('inf')
     max_difference = float('-inf')
@@ -346,24 +334,30 @@ def mainloop(parameters):
             best_route (list): Best route found during the loop.
             best_dist (float): Shortest distance found during the loop.
     """
-    cities, cities_cor, T_0, T_min, iteration, seed, ITERATIONS = parameters
+    cities, cities_cor, T_0, T_min, iteration, seed, iterations = parameters
     
     # cities, cities_cor, T_0, T_min, iteration, seed = parameters
     total_dist = total_length(cities, cities_cor)
     all_dists = []
     best_dist = total_dist
     best_route = cities
+    sub_dists = []
     # alpha = 0.5 # should be between 0 < alpha < 1 for exponential cooling
 
-    for l in range(ITERATIONS):
+    for l in range(iterations):
         if EXPONENTIAL_COOLING:
-            T_k = exponential_cooling(T_0, T_min, l, ITERATIONS)
+            T_k = exponential_cooling(T_0, T_min, l, iterations)
         elif LINEAR_COOLING:
-            T_k = linear_cooling(T_0, T_min, l)
+            T_k = linear_cooling(T_0, T_min, l, iterations)
         elif LOGARITHMIC_COOLING:
-            T_k = logarithmic_cooling(T_0, T_min, l, ITERATIONS)
+            T_k = logarithmic_cooling(T_0, T_min, l,iterations)
 
-        all_dists.append(total_dist)
+        sub_dists.append(total_dist)
+        if l % 100 == 0:
+            all_dists.append(np.mean(sub_dists))
+            sub_dists = []
+
+        # all_dists.append(total_dist)
         seed += 1
         city1, city2 = pick_connection(len(cities) - 1, seed)
 
@@ -385,10 +379,11 @@ def mainloop(parameters):
                 best_dist = total_dist
                 best_route = cities[:]
     
+    
     return all_dists, best_route, best_dist, iteration
 
 
-def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
+def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterations, seed):
     """
     Run multiple iterations of a TSP optimization to find the best route.
 
@@ -417,7 +412,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
 
         cities = [1] + shuffle_cities + [1]
 
-        parameters = (cities, cities_cor, T_0, T_min, i, seed, ITERATIONS)
+        parameters = (cities, cities_cor, T_0, T_min, i, seed*51, iterations)
         pars.append(parameters)
 
         
@@ -487,8 +482,8 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
 
     return overall_best_dist, overall_best_route, all_dists_from_runs, best_distances_runs, best_routes_runs
 
-# ITERATIONS = 10000000
-ITERATIONS = 10000000 # lowered this to test the results for visualization
+# ITERATIONS = 500000
+# ITERATIONS = 50000 # lowered this to test the results for visualization
 # PROCESSES=2 # adjust this to more
 PROCESSES=10 # adjust this to more
 EXPONENTIAL_COOLING = False
@@ -512,55 +507,52 @@ def main():
 
     # adjust number of runs to something else
     num_runs = 10
-    orig_seed = 33
+    orig_seed = 34
     shuffle_cities = cities[1:]
 
     initial_solution = [1] + list(shuffle_cities) + [1]
     base_T0, base_Tmin = find_temperature_parameters(cities_cor, initial_solution)
 
-    # vary with these values to get different stepsizes
-    # T_0_values = [base_T0 * 0.75, base_T0, base_T0 * 1.25]  # change T_0 values later
-    # T_min_values = [base_Tmin * 0.5, base_Tmin]  # change T_min values later
 
-    # values exponential
-    # T_0_values = [100, 90]  # change T_0 values later
-    # T_min_values = [1.2, 0.1]  # change T_min values later
-
-    # values linear
-    # T_0_values = [80, 60, 40, 20, 10]  # change T_0 values later
-    # T_min_values = [1, 0.1, 0.01]  # change T_min values later
-
-
-    #derived value for T_0:
-    T_0_values = [400, 20]
-    T_min_values = [1]
+    T_0_values = [400, 200, 20]
+    T_min = 1
+    iterations = [500000, 10000000]
 
     all_results = []
 
     for T_0 in T_0_values:
-        for T_min in T_min_values:
+        for iter in iterations:
+            # ITERATIONS = iter
             orig_seed +=1
             print(f"Running with T_0 = {T_0}, T_min = {T_min}")
             best_overall_dist, best_overall_route, distances, best_distances_its, best_routes_its = multiple_iterations(
-                shuffle_cities, cities_cor, num_runs, T_0, T_min, orig_seed
+                shuffle_cities, cities_cor, num_runs, T_0, T_min, iter, orig_seed
             )
             
             # Add only the best distance and label to results
             all_results.append({
-                "label": f"T_0={T_0}, T_min={T_min}",
+                "label": f"T_0={T_0}, T_min={T_min}, Iterations={iter}",
                 "best_distance": best_overall_dist,
                 "distances": distances,
                 "best_distances_runs": best_distances_its,
                 "best_routes_runs": best_routes_its
             })
 
-            # Convert to DataFrame
-            df = pd.DataFrame(all_results)
-            df = df[['label', 'best_distance', 'best_distances_runs']]
-            csv_filename = f"data/best_dist_{cooling_strategy}.csv"
-            df.to_csv(csv_filename, index=False)
+            df2 = pd.DataFrame(distances).T
+            df2.columns = [f"Run {i+1}" for i in range(len(distances))]
+            # empty file
+            csv_filename = f"data/{cooling_strategy}/distances_{T_0}_{iter}.csv"
+            with open(csv_filename, 'w') as f:
+                pass
+            df2.to_csv(csv_filename, index=False)
 
-        # Print the best distance for each run
+    # Convert to DataFrame
+    df = pd.DataFrame(all_results)
+    df = df[['label', 'best_distance', 'best_distances_runs']]
+    csv_filename = f"data/best_dist_{cooling_strategy}_{iter}.csv"
+    df.to_csv(csv_filename, index=False)
+
+    # Print the best distance for each run
     for result in all_results:
         label = result["label"]
         best_distance = result["best_distance"]
