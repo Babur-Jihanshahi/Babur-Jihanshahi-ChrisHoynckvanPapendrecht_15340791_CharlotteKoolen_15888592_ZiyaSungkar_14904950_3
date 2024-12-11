@@ -320,7 +320,6 @@ def find_temperature_parameters(cities_cor, cities, num_samples=100):
     print(f"T_min: {T_min:.2f} (will accept moves that increase distance by {min_difference:.2f} with 1% probability)")
     return T_0, T_min
 
-
 def accept(dist_i, dist_j, T_k, seed):
     if dist_j <= dist_i:
         return True
@@ -402,6 +401,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     Returns:
         tuple: (best distance, best route, distances from all runs).
     """
+    os.makedirs('data', exist_ok=True)
     overall_best_route = []
     overall_best_dist = np.inf
     pars = []
@@ -427,12 +427,34 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
     with Pool(PROCESSES) as pool:
         assert PROCESSES < os.cpu_count(), "Lower the number of processes (PROCESSES)"
         print(f"Starting parallel execution for {cooling_strategy} schedule")
+        # run_data = []
         for res in pool.imap_unordered(mainloop, pars):
             all_dists, best_route, best_dist, iteration = res
             all_dists_from_runs.append(all_dists)
 
             best_routes_runs.append(best_route)
             best_distances_runs.append(best_dist)
+
+            # run_data.append({
+            #     'run': iteration,
+            #     'T_0': T_0,
+            #     'T_min': T_min,
+            #     'distances': all_dists,
+            #     'final_distance': best_dist,
+            #     'best_distance': min(all_dists)
+            # })
+
+            run_df = pd.DataFrame({
+                'iteration': range(len(all_dists)),
+                'distance': all_dists,
+                'run': iteration,
+                'T_0': T_0,
+                'T_min': T_min,
+                'best_distance_so_far': min(all_dists),  # Added this metric
+                'current_temperature': [logarithmic_cooling(T_0, T_min, i, ITERATIONS) for i in range(len(all_dists))]  # Added temperature tracking
+            })
+            run_df.to_csv(f'data/detailed_distances_{cooling_strategy}_T0_{T_0}_Tmin_{T_min}_run_{iteration}.csv', 
+                         index=False)
 
             # update overall best distance if a new low is computed
             if best_dist < overall_best_dist:
@@ -442,13 +464,31 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
             
             print(f"finished iteration {iteration}, found route with distance {best_dist}")
 
+            # run_df = pd.DataFrame({
+            #     'iteration': range(len(all_dists)),
+            #     'distance': all_dists,
+            #     'run': iteration,
+            #     'T_0': T_0,
+            #     'T_min': T_min
+            # })
+            # run_df.to_csv(f'data/detailed_distances_{cooling_strategy}_T0_{T_0}_Tmin_{T_min}_run_{iteration}.csv', 
+            # index=False)
+
+    summary_df = pd.DataFrame({
+        'run': range(len(best_distances_runs)),
+        'best_distance': best_distances_runs,
+        'T_0': T_0,
+        'T_min': T_min
+    })
+    summary_df.to_csv(f'data/summary_{cooling_strategy}_T0_{T_0}_Tmin_{T_min}.csv', index=False)
+
     distt = total_length(overall_best_route, cities_cor)
     print(f"found route with distance: {overall_best_dist}, actual dist {distt}")
 
     return overall_best_dist, overall_best_route, all_dists_from_runs, best_distances_runs, best_routes_runs
 
 # ITERATIONS = 10000000
-ITERATIONS = 50000 # lowered this to test the results for visualization
+ITERATIONS = 10000000 # lowered this to test the results for visualization
 # PROCESSES=2 # adjust this to more
 PROCESSES=10 # adjust this to more
 EXPONENTIAL_COOLING = False
@@ -479,21 +519,21 @@ def main():
     base_T0, base_Tmin = find_temperature_parameters(cities_cor, initial_solution)
 
     # vary with these values to get different stepsizes
-    T_0_values = [base_T0 * 0.75, base_T0, base_T0 * 1.25]  # change T_0 values later
-    T_min_values = [base_Tmin * 0.5, base_Tmin]  # change T_min values later
+    # T_0_values = [base_T0 * 0.75, base_T0, base_T0 * 1.25]  # change T_0 values later
+    # T_min_values = [base_Tmin * 0.5, base_Tmin]  # change T_min values later
 
     # values exponential
     # T_0_values = [100, 90]  # change T_0 values later
     # T_min_values = [1.2, 0.1]  # change T_min values later
 
     # values linear
-    T_0_values = [80, 60, 40, 20, 10]  # change T_0 values later
-    T_min_values = [1, 0.1, 0.01]  # change T_min values later
+    # T_0_values = [80, 60, 40, 20, 10]  # change T_0 values later
+    # T_min_values = [1, 0.1, 0.01]  # change T_min values later
 
 
     #derived value for T_0:
-    T_0_values = [1000, 400, 200, 100, 50, 20]
-    T_min_values = [10, 2.5, 1, 0.25, 0.025]
+    T_0_values = [400, 20]
+    T_min_values = [1]
 
     all_results = []
 
