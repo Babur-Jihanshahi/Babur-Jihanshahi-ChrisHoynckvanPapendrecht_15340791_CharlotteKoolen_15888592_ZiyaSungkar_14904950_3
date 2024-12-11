@@ -123,8 +123,8 @@ def diff_dist(switch1, switch2, cities_cor, cities):
             tot_diff_new (float): Total distance of the route after the swap.
     """
     n = len(cities) - 1
-    neighbours1 = []
-    neighbours2 = []
+
+
 
     idx1 = cities[switch1] - 1
     idx2 = cities[switch2] - 1
@@ -132,48 +132,49 @@ def diff_dist(switch1, switch2, cities_cor, cities):
     # do minus one to get from city name to index -> index starts at 0 and cityname at 1
 
     # this can't be the case anymore as index 0 can't ever be picked
-    if switch1 != 0:
-        old_prev_cor1 = cities_cor[cities[switch1 - 1] - 1]
-        neighbours1.append(cities[switch1 - 1])
+    # if switch1 != 0:
+    old_prev_cor1 = cities_cor[cities[switch1] - 1]
+    # if switch1 != 0:
+    old_prev_cor1 = cities_cor[cities[switch1] - 1]
     # do -2 as the last city in the list is the same as the first one
-    else:
-        old_prev_cor1 = cities_cor[cities[n - 1] - 1]
-        neighbours1.append(cities[n - 1])
+    # else:
+    #     old_prev_cor1 = cities_cor[cities[n - 1] - 1]
+    # else:
+    #     old_prev_cor1 = cities_cor[cities[n - 1] - 1]
 
     # this can't be the case anymore because index 0 can't be picked 
-    if switch2 != 0:
-        old_prev_cor2 = cities_cor[cities[switch2 - 1] - 1]
-        neighbours2.append(cities[switch2 - 1])
+    # if switch2 != 0:
+    old_prev_cor2 = cities_cor[cities[switch2] - 1]
+    # if switch2 != 0:
+    old_prev_cor2 = cities_cor[cities[switch2] - 1]
     # do -2 as the last city in the list is the same as the first one
-    else:
-        old_prev_cor2 = cities_cor[cities[n - 1] - 1]
-        neighbours2.append(cities[n - 1])
-
+    # else:
+    #     old_prev_cor2 = cities_cor[cities[n - 1] - 1]
+    # else:
+    #     old_prev_cor2 = cities_cor[cities[n - 1] - 1]
     # determine city after current one, no bounds are needed as the last city is the same as the first in the list
 
     if switch1 >= n or switch2 >= n:
         print("invalid operation, indexes chosen is too high")
     old_next_cor1 = cities_cor[cities[switch1 + 1] - 1]
-    neighbours1.append(cities[switch1 + 1])
     old_next_cor2 = cities_cor[cities[switch2 + 1] - 1]
-    neighbours2.append(cities[switch2 + 1])
 
     # calculate old distances
-    old_diff_1 = coordinate_diff(old_prev_cor1, cities_cor[idx1]) + coordinate_diff(cities_cor[idx1], old_next_cor1)
-    old_diff_2 = coordinate_diff(old_prev_cor2, cities_cor[idx2]) + coordinate_diff(cities_cor[idx2], old_next_cor2)
+    old_diff_1 = coordinate_diff(old_prev_cor1, old_next_cor1) 
+    old_diff_2 = coordinate_diff(old_prev_cor2, old_next_cor2)
 
     tot_diff_old = old_diff_1 + old_diff_2
 
     # calculate new differences
-    new_diff_1 = coordinate_diff(old_prev_cor1, cities_cor[idx2]) + coordinate_diff(cities_cor[idx2], old_next_cor1)
-    new_diff_2 = coordinate_diff(old_prev_cor2, cities_cor[idx1]) + coordinate_diff(cities_cor[idx1], old_next_cor2)
+    new_diff_1 = coordinate_diff(old_prev_cor1, old_prev_cor2)
+    new_diff_2 = coordinate_diff(old_next_cor2, old_next_cor1) 
 
     tot_diff_new = new_diff_1 + new_diff_2
 
     return tot_diff_old, tot_diff_new
 
 
-def pick_cities(length, seed=None):
+def pick_connection(length, seed=None):
     """
     Picks two random indexes from a list such that they are not adjacent.
     
@@ -188,10 +189,10 @@ def pick_cities(length, seed=None):
         np.random.seed(seed)
 
     # Randomly pick the first index
-    idx1 = np.random.randint(1, length)
+    idx1 = np.random.randint(0, length)
+    idx1 = np.random.randint(0, length)
 
     # Exclude adjacent indexes
-    # this will never be happen as first index is currently fixed
     if idx1 == 0: 
         previdx = length-1
     else:
@@ -207,8 +208,8 @@ def pick_cities(length, seed=None):
     # Randomly pick the second index from the remaining options
     idx2 = np.random.choice(possible_indexes)
 
-    assert idx1 != 0, "idx1 should not be 0"
-    assert idx2 != 0, "idx2 should not be 0"
+    # assert idx1 != 0, "idx1 should not be 0"
+    # assert idx2 != 0, "idx2 should not be 0"
 
     return idx1, idx2
 
@@ -225,22 +226,36 @@ def switch(cor1, cor2, cits):
     Returns:
         list: Updated route after the swap.
     """
-    switch1 = cits[cor1]
-    cits[cor1] = cits[cor2]
+    # switch1 = cits[cor1]
+    # cits[cor1] = cits[cor2]
 
-    # last index and first index has the same value
-    if cor1 == 0:
-        cits[-1] = cits[cor2]
-    cits[cor2] = switch1
+    # # last index and first index has the same value
+    # if cor1 == 0:
+    #     cits[-1] = cits[cor2]
+    # cits[cor2] = switch1
 
-    # last index and first index has the same value
-    if cor2 == 0:
-        cits[-1] = switch1
+    # # last index and first index has the same value
+    # if cor2 == 0:
+    #     cits[-1] = switch1
+    
+    citscopy = cits[:-1]
 
-    return cits 
+    if cor1 < cor2:
+        citietjes = citscopy[:1] + citscopy[1:cor1+1] + citscopy[cor1+1: cor2+1][::-1] + citscopy[cor2+1:] 
+        # print(f"normal swap, before swap: {citscopy}, after swap: {citietjes}, cor1 = {cor1}, cor2 = {cor2}")
+    else: #swap with wraparound
+        citietjes = citscopy[:1] + citscopy[cor1+1:][::-1] + citscopy[cor2+1 : cor1+1] +  citscopy[1:cor2+1][::-1]
+        # print(f"swap with raparound, before swap: {citscopy}, after swap: {citietjes} cor1 = {cor1}, cor2 = {cor2}")
+
+    citietjes = citietjes + [cits[0]]
+    return citietjes
 
 def linear_cooling(T_0, T_min, k):
-    return T_0 - k*(T_0 - T_min)/ITERATIONS
+    value =  T_0 - k*(T_0 - T_min)/ITERATIONS
+    # if value < 3:
+    #     return 3
+    return value
+
 
 def exponential_cooling(T_0, T_min, t, ITERATIONS):
     """
@@ -286,7 +301,7 @@ def find_temperature_parameters(cities_cor, cities, num_samples=100):
 
     # sample random moves:
     for i in range(num_samples):
-        city1, city2 = pick_cities(len(cities) - 1, seed=i)
+        city1, city2 = pick_connection(len(cities) - 1, seed=i)
         old_dist, new_dist = diff_dist(city1, city2, cities_cor, cities)
         diff = new_dist - old_dist
         if diff > 0:
@@ -351,7 +366,7 @@ def mainloop(parameters):
 
         all_dists.append(total_dist)
         seed += 1
-        city1, city2 = pick_cities(len(cities) - 1, seed)
+        city1, city2 = pick_connection(len(cities) - 1, seed)
 
         # Ensure indices are valid and cities are not neighbors
         assert city1 < len(cities) - 1 and city2 < len(cities) - 1, "Index of city is too big"
@@ -411,7 +426,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
 
     with Pool(PROCESSES) as pool:
         assert PROCESSES < os.cpu_count(), "Lower the number of processes (PROCESSES)"
-        print(f"Starting parallel execution for linear convergence")
+        print(f"Starting parallel execution for {cooling_strategy} schedule")
         for res in pool.imap_unordered(mainloop, pars):
             all_dists, best_route, best_dist, iteration = res
             all_dists_from_runs.append(all_dists)
@@ -428,13 +443,13 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, seed):
             print(f"finished iteration {iteration}, found route with distance {best_dist}")
 
     distt = total_length(overall_best_route, cities_cor)
-    print(f"found route with distance: {overall_best_dist}, actual dist {distt} \n route: {overall_best_route}")
+    print(f"found route with distance: {overall_best_dist}, actual dist {distt}")
 
     return overall_best_dist, overall_best_route, all_dists_from_runs, best_distances_runs, best_routes_runs
 
-ITERATIONS = 20000000
-#ITERATIONS = 50000 # lowered this to test the results for visualization
-#PROCESSES=2 # adjust this to more
+# ITERATIONS = 10000000
+ITERATIONS = 50000 # lowered this to test the results for visualization
+# PROCESSES=2 # adjust this to more
 PROCESSES=10 # adjust this to more
 EXPONENTIAL_COOLING = False
 LINEAR_COOLING = False
@@ -450,11 +465,13 @@ elif LOGARITHMIC_COOLING:
 def main():
     cities, cities_cor = parse_tsp_data("TSP-Configurations/a280.tsp.txt")
     opt_tour = parse_optimal_tour("TSP-Configurations/a280.opt.tour.txt")
+
+    # cities = [1, 2, 3, 4, 5] 
+    # cities_cor = [(0,1), (0,4), (3,3), (2,1), (4,4)]
     opt_tour.append(1)
 
     # adjust number of runs to something else
     num_runs = 10
-    #num_runs = 1
     orig_seed = 33
     shuffle_cities = cities[1:]
 
@@ -470,13 +487,19 @@ def main():
     # T_min_values = [1.2, 0.1]  # change T_min values later
 
     # values linear
-    # T_0_values = [100, 50]  # change T_0 values later
-    # T_min_values = [5, 0.1]  # change T_min values later
+    T_0_values = [80, 60, 40, 20, 10]  # change T_0 values later
+    T_min_values = [1, 0.1, 0.01]  # change T_min values later
+
+
+    #derived value for T_0:
+    T_0_values = [1000, 400, 200, 100, 50, 20]
+    T_min_values = [10, 2.5, 1, 0.25, 0.025]
 
     all_results = []
 
     for T_0 in T_0_values:
         for T_min in T_min_values:
+            orig_seed +=1
             print(f"Running with T_0 = {T_0}, T_min = {T_min}")
             best_overall_dist, best_overall_route, distances, best_distances_its, best_routes_its = multiple_iterations(
                 shuffle_cities, cities_cor, num_runs, T_0, T_min, orig_seed
@@ -494,14 +517,14 @@ def main():
             # Convert to DataFrame
             df = pd.DataFrame(all_results)
             df = df[['label', 'best_distance', 'best_distances_runs']]
-            csv_filename = f"best_dist_{cooling_strategy}.csv"
+            csv_filename = f"data/best_dist_{cooling_strategy}.csv"
             df.to_csv(csv_filename, index=False)
 
-            # Print the best distance for each run
-            for result in all_results:
-                label = result["label"]
-                best_distance = result["best_distance"]
-                print(f"For {label}: Best Distance = {best_distance}")
+        # Print the best distance for each run
+    for result in all_results:
+        label = result["label"]
+        best_distance = result["best_distance"]
+        print(f"For {label}: Best Distance = {best_distance}")
 
     # Visualize all results
     print(f"Opitmal tour is: {total_length(opt_tour, cities_cor)}")

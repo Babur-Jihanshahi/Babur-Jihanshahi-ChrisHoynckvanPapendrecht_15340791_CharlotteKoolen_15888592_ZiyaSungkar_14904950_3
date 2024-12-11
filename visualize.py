@@ -82,12 +82,32 @@ def visualize_developing_multiple_lines(all_results):
         means = np.mean(sort_on_index, axis=1)
         variances = np.var(sort_on_index, axis=1)
         num_iterations = len(sort_on_index)
-        iters = np.linspace(0, num_iterations, num_iterations)
-        plt.plot(iters, means, label=label)
-        stdevv = np.sqrt(variances)
-        lower_bound = means - stdevv
-        upper_bound = means + stdevv
-        plt.fill_between(iters, lower_bound, upper_bound, alpha=0.2)
+        # iters = np.linspace(0, num_iterations, num_iterations)
+        # plt.plot(iters, means, label=label)
+        # stdevv = np.sqrt(variances)
+        # lower_bound = means - stdevv
+        # upper_bound = means + stdevv
+        # plt.fill_between(iters, lower_bound, upper_bound, alpha=0.2)
+
+
+        # Group the means and variances
+        group_size = 1000
+        num_iterations = len(means)
+        num_groups = num_iterations // group_size
+        grouped_means = means.reshape(-1, group_size).mean(axis=1)
+        grouped_variances = variances.reshape(-1, group_size).mean(axis=1)
+
+        # Create grouped x-axis
+        grouped_iters = np.linspace(0, num_iterations, len(grouped_means))
+
+        # Calculate standard deviation bounds for visualization
+        grouped_stdev = np.sqrt(grouped_variances)
+        lower_bound = grouped_means - grouped_stdev
+        upper_bound = grouped_means + grouped_stdev
+
+        # Plot the grouped data
+        plt.plot(grouped_iters, grouped_means, label=label)
+        plt.fill_between(grouped_iters, lower_bound, upper_bound, alpha=0.2)
 
     plt.xlim(0, num_iterations)
     plt.grid()
