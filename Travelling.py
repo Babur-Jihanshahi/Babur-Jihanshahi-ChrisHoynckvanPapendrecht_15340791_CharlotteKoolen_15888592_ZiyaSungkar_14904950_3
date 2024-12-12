@@ -38,6 +38,32 @@ def parse_optimal_tour(file_path):
     
     return numbers
 
+def find_temperature_parameters(cities_cor, cities, num_samples=10000):
+    differences = []
+    min_difference = float('inf')
+    max_difference = float('-inf')
+
+    # sample random moves:
+    for i in range(num_samples):
+        city1, city2 = pick_connection(len(cities) - 1, seed=i)
+        old_dist, new_dist = diff_dist(city1, city2, cities_cor, cities)
+        diff = new_dist - old_dist
+        if diff > 0:
+            differences.append(diff)
+            min_difference = min(min_difference, diff)
+            max_difference = max(max_difference, diff)
+
+    if not differences:
+        return find_temperature_parameters(cities_cor, cities, num_samples * 2)
+    
+    avg_difference = np.mean(differences)
+    T_0 = -avg_difference / np.log(0.8)
+    T_min = -min_difference / np.log(0.01)
+    print(f"Suggested parameters based on {num_samples} samples:")
+    print(f'T_0: {T_0:.2f} (will accept moves that increases distance by {avg_difference:.2f} with 80% probability)')
+    print(f"T_min: {T_min:.2f} (will accept moves that increase distance by {min_difference:.2f} with 1% probability)")
+    return T_0, T_min
+
 def parse_tsp_data(configuration):
     """
     Parse a TSP configuration file to extract city coordinates and identifiers.
@@ -134,17 +160,6 @@ def diff_dist(switch1, switch2, cities_cor, cities):
     # this can't be the case anymore as index 0 can't ever be picked
     # if switch1 != 0:
     old_prev_cor1 = cities_cor[cities[switch1] - 1]
-    # if switch1 != 0:
-    old_prev_cor1 = cities_cor[cities[switch1] - 1]
-    # do -2 as the last city in the list is the same as the first one
-    # else:
-    #     old_prev_cor1 = cities_cor[cities[n - 1] - 1]
-    # else:
-    #     old_prev_cor1 = cities_cor[cities[n - 1] - 1]
-
-    # this can't be the case anymore because index 0 can't be picked 
-    # if switch2 != 0:
-    old_prev_cor2 = cities_cor[cities[switch2] - 1]
     # if switch2 != 0:
     old_prev_cor2 = cities_cor[cities[switch2] - 1]
     # do -2 as the last city in the list is the same as the first one
@@ -276,41 +291,20 @@ def logarithmic_cooling(T_0, T_min, k, iters):
     Returns:
     float: Updated temperature based on logarithmic schedule  
     """
-    C = T_0 * np.log(1 + iters) / (T_0 - T_min)
-    T =  C / np.log(1+iters)
+    # C = T_0 * np.log(2 + iters) / (T_0 - T_min)
+    # T =  C / np.log(2+k)
+
+    # C = (T_0 - T_min)/ np.log(2 + iters)
+    # T = T_min + C / np.log(2 + k)
+
     
-    # alpha = (T_min * np.log(iters + 1)) / T_0
-    # # T = T_0 - alpha  #*np.log(k+1)
-    # T =(alpha * T_0) / np.log(k + 2)
+    alpha = (T_min * np.log(iters + 2)) / T_0
+    # T = T_0 - alpha  #*np.log(k+1)
+    T =(alpha * T_0) / np.log(k + 2)
+
 
     return (T)
     #return max(T, T_min) # not necessary anymore
-
-def find_temperature_parameters(cities_cor, cities, num_samples=10000):
-    differences = []
-    min_difference = float('inf')
-    max_difference = float('-inf')
-
-    # sample random moves:
-    for i in range(num_samples):
-        city1, city2 = pick_connection(len(cities) - 1, seed=i)
-        old_dist, new_dist = diff_dist(city1, city2, cities_cor, cities)
-        diff = new_dist - old_dist
-        if diff > 0:
-            differences.append(diff)
-            min_difference = min(min_difference, diff)
-            max_difference = max(max_difference, diff)
-
-    if not differences:
-        return find_temperature_parameters(cities_cor, cities, num_samples * 2)
-    
-    avg_difference = np.mean(differences)
-    T_0 = -avg_difference / np.log(0.8)
-    T_min = -min_difference / np.log(0.01)
-    print(f"Suggested parameters based on {num_samples} samples:")
-    print(f'T_0: {T_0:.2f} (will accept moves that increases distance by {avg_difference:.2f} with 80% probability)')
-    print(f"T_min: {T_min:.2f} (will accept moves that increase distance by {min_difference:.2f} with 1% probability)")
-    return T_0, T_min
 
 def accept(dist_i, dist_j, T_k, seed):
     if dist_j <= dist_i:
@@ -340,25 +334,35 @@ def mainloop(parameters):
     """
     cities, cities_cor, T_0, T_min, proc, seed, iterations = parameters
     
+    chain_length = ITERATIONS/iterations
     # cities, cities_cor, T_0, T_min, iteration, seed = parameters
     total_dist = total_length(cities, cities_cor)
     all_dists = []
+    variances = []
     best_dist = total_dist
     best_route = cities
     sub_dists = []
     # alpha = 0.5 # should be between 0 < alpha < 1 for exponential cooling
+    counter= 1
+    evals = 0
+    T_k = T_0
+    for l in range(ITERATIONS):
+        if counter == 0: 
+            if EXPONENTIAL_COOLING:
+                T_k = exponential_cooling(T_0, T_min, evals, iterations)
+            elif LINEAR_COOLING:
+                T_k = linear_cooling(T_0, T_min, evals, iterations)
+            elif LOGARITHMIC_COOLING:
+                T_k = logarithmic_cooling(T_0, T_min, evals,iterations)
+            evals+=1
 
-    for l in range(iterations):
-        if EXPONENTIAL_COOLING:
-            T_k = exponential_cooling(T_0, T_min, l, iterations)
-        elif LINEAR_COOLING:
-            T_k = linear_cooling(T_0, T_min, l, iterations)
-        elif LOGARITHMIC_COOLING:
-            T_k = logarithmic_cooling(T_0, T_min, l,iterations)
+        #for implementing markov chain
+        counter = (counter + 1) % chain_length
 
         sub_dists.append(total_dist)
         if l % 100 == 0:
             all_dists.append(np.mean(sub_dists))
+            variances.append(np.var(sub_dists))
             sub_dists = []
 
         # all_dists.append(total_dist)
@@ -384,7 +388,7 @@ def mainloop(parameters):
                 best_route = cities[:]
     
     
-    return all_dists, best_route, best_dist, proc
+    return all_dists, variances, best_route, best_dist, proc
 
 
 def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterations, seed):
@@ -406,6 +410,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
     pars = []
     
     all_dists_from_runs = []
+    all_variances_from_runs = []
     for i in range(num_runs):
         print(f"Starting iteration {i}")
         # ensure reproducibility
@@ -428,8 +433,9 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
         print(f"Starting parallel execution for {cooling_strategy} schedule")
         results = pool.map(mainloop, pars)
         for res in results:
-            all_dists, best_route, best_dist, proc = res
-            all_dists_from_runs.append(all_dists)
+            all_dists, variances, best_route, best_dist, proc = res
+            all_dists_from_runs.append(list(zip(all_dists, variances)))
+            all_variances_from_runs.append(variances)
 
             best_routes_runs.append(best_route)
             best_distances_runs.append(best_dist)
@@ -447,9 +453,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
 
     return overall_best_dist, overall_best_route, all_dists_from_runs, best_distances_runs, best_routes_runs
 
-# ITERATIONS = 500000
-# ITERATIONS = 50000 # lowered this to test the results for visualization
-# PROCESSES=2 # adjust this to more
+ITERATIONS = 10000000
 PROCESSES=10 # adjust this to more
 EXPONENTIAL_COOLING = False
 LINEAR_COOLING = False
@@ -479,9 +483,9 @@ def main():
     base_T0, base_Tmin = find_temperature_parameters(cities_cor, initial_solution)
 
 
-    T_0_values = [400, 20]
+    T_0_values = [400, 100, 20]
     T_min = 1
-    iterations = [500000, 10000000]
+    iterations = [50000, 10000000] #, 10000000]
 
     all_results = []
 
@@ -509,13 +513,13 @@ def main():
             csv_filename = f"data/{cooling_strategy}/distances_{T_0}_{iter}.csv"
             with open(csv_filename, 'w') as f:
                 pass
-            df2.to_csv(csv_filename, index=False)
+            # df2.to_csv(csv_filename, index=False)
 
     # Convert to DataFrame
     df = pd.DataFrame(all_results)
     df = df[['label', 'best_distance', 'best_distances_runs']]
-    csv_filename = f"data/best_dist_{cooling_strategy}_{iter}.csv"
-    df.to_csv(csv_filename, index=False)
+    csv_filename = f"data/best_dist_{cooling_strategy}.csv"
+    # df.to_csv(csv_filename, index=False)
 
     # Print the best distance for each run
     for result in all_results:

@@ -76,7 +76,8 @@ def visualize_developing_multiple_lines(all_results):
     plt.figure(figsize=(8, 6))
 
     for result in all_results:
-        distances = result["distances"]
+        distances = [[item[0] for item in sublist] for sublist in result["distances"]]
+        variances = [[item[1] for item in sublist] for sublist in result["distances"]]
         label = result["label"]
         sort_on_index = np.array(distances).T
         means = np.mean(sort_on_index, axis=1)
