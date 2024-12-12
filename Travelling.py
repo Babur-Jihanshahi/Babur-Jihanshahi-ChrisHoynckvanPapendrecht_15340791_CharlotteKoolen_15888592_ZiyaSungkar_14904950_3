@@ -276,8 +276,12 @@ def logarithmic_cooling(T_0, T_min, k, iters):
     Returns:
     float: Updated temperature based on logarithmic schedule  
     """
-    alpha = (T_min * np.log(iters + 2)) / T_0
-    T =(alpha * T_0) / np.log(k + 2)
+    C = T_0 * np.log(1 + iters) / (T_0 - T_min)
+    T =  C / np.log(1+iters)
+    
+    # alpha = (T_min * np.log(iters + 1)) / T_0
+    # # T = T_0 - alpha  #*np.log(k+1)
+    # T =(alpha * T_0) / np.log(k + 2)
 
     return (T)
     #return max(T, T_min) # not necessary anymore
@@ -335,7 +339,7 @@ def mainloop(parameters):
             best_route (list): Best route found during the loop.
             best_dist (float): Shortest distance found during the loop.
     """
-    cities, cities_cor, T_0, T_min, iteration, seed, iterations = parameters
+    cities, cities_cor, T_0, T_min, proc, seed, iterations = parameters
     
     # cities, cities_cor, T_0, T_min, iteration, seed = parameters
     total_dist = total_length(cities, cities_cor)
@@ -381,7 +385,7 @@ def mainloop(parameters):
                 best_route = cities[:]
     
     
-    return all_dists, best_route, best_dist, iteration
+    return all_dists, best_route, best_dist, proc
 
 
 def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterations, seed):
@@ -422,8 +426,9 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
     with Pool(PROCESSES) as pool:
         assert PROCESSES < os.cpu_count(), "Lower the number of processes (PROCESSES)"
         print(f"Starting parallel execution for {cooling_strategy} schedule")
-        for res in pool.imap_unordered(mainloop, pars):
-            all_dists, best_route, best_dist, iteration = res
+        results = pool.map(mainloop, pars)
+        for res in results:
+            all_dists, best_route, best_dist, proc = res
             all_dists_from_runs.append(all_dists)
 
             best_routes_runs.append(best_route)
@@ -435,7 +440,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
                 overall_best_route = best_route[:]
         
             
-            print(f"finished iteration {iteration}, found route with distance {best_dist}")
+            print(f"finished iteration {proc}, found route with distance {best_dist}")
 
     distt = total_length(overall_best_route, cities_cor)
     print(f"found route with distance: {overall_best_dist}, actual dist {distt}")
@@ -446,9 +451,9 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
 # ITERATIONS = 50000 # lowered this to test the results for visualization
 # PROCESSES=2 # adjust this to more
 PROCESSES=10 # adjust this to more
-EXPONENTIAL_COOLING = False
+EXPONENTIAL_COOLING = True
 LINEAR_COOLING = False
-LOGARITHMIC_COOLING = True
+LOGARITHMIC_COOLING = False
 
 if EXPONENTIAL_COOLING:
     cooling_strategy = "Exponential"
@@ -474,7 +479,7 @@ def main():
     base_T0, base_Tmin = find_temperature_parameters(cities_cor, initial_solution)
 
 
-    T_0_values = [400, 200, 20]
+    T_0_values = [400, 20]
     T_min = 1
     iterations = [500000, 10000000]
 
