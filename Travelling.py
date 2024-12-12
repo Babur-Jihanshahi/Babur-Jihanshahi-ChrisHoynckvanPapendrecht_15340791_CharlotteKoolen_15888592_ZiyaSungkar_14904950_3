@@ -456,8 +456,8 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
 ITERATIONS = 10000000
 PROCESSES=10 # adjust this to more
 EXPONENTIAL_COOLING = False
-LINEAR_COOLING = False
-LOGARITHMIC_COOLING = True
+LINEAR_COOLING = True
+LOGARITHMIC_COOLING = False
 
 if EXPONENTIAL_COOLING:
     cooling_strategy = "Exponential"
@@ -483,9 +483,9 @@ def main():
     base_T0, base_Tmin = find_temperature_parameters(cities_cor, initial_solution)
 
 
-    T_0_values = [400, 100, 20]
+    T_0_values = [400, 40]
     T_min = 1
-    iterations = [50000, 10000000] #, 10000000]
+    iterations = [100, 10000, 10000000] #, 10000000]
 
     all_results = []
 
@@ -513,13 +513,13 @@ def main():
             csv_filename = f"data/{cooling_strategy}/distances_{T_0}_{iter}.csv"
             with open(csv_filename, 'w') as f:
                 pass
-            # df2.to_csv(csv_filename, index=False)
+            df2.to_csv(csv_filename, index=False)
 
     # Convert to DataFrame
     df = pd.DataFrame(all_results)
     df = df[['label', 'best_distance', 'best_distances_runs']]
     csv_filename = f"data/best_dist_{cooling_strategy}.csv"
-    # df.to_csv(csv_filename, index=False)
+    df.to_csv(csv_filename, index=False)
 
     # Print the best distance for each run
     for result in all_results:
