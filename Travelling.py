@@ -312,7 +312,6 @@ def find_temperature_parameters(cities_cor, cities, num_samples=10000):
     print(f"T_min: {T_min:.2f} (will accept moves that increase distance by {min_difference:.2f} with 1% probability)")
     return T_0, T_min
 
-
 def accept(dist_i, dist_j, T_k, seed):
     if dist_j <= dist_i:
         return True
@@ -401,6 +400,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
     Returns:
         tuple: (best distance, best route, distances from all runs).
     """
+    os.makedirs('data', exist_ok=True)
     overall_best_route = []
     overall_best_dist = np.inf
     pars = []
@@ -451,9 +451,9 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
 # ITERATIONS = 50000 # lowered this to test the results for visualization
 # PROCESSES=2 # adjust this to more
 PROCESSES=10 # adjust this to more
-EXPONENTIAL_COOLING = True
+EXPONENTIAL_COOLING = False
 LINEAR_COOLING = False
-LOGARITHMIC_COOLING = False
+LOGARITHMIC_COOLING = True
 
 if EXPONENTIAL_COOLING:
     cooling_strategy = "Exponential"
