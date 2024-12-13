@@ -404,7 +404,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
     Returns:
         tuple: (best distance, best route, distances from all runs).
     """
-    os.makedirs('data', exist_ok=True)
+    os.makedirs(f"data/{cooling_strategy}", exist_ok=True)
     overall_best_route = []
     overall_best_dist = np.inf
     pars = []
