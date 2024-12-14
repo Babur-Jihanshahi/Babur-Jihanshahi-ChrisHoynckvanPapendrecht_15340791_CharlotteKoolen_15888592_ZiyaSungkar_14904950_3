@@ -404,7 +404,7 @@ def multiple_iterations(shuffle_cities, cities_cor, num_runs, T_0, T_min, iterat
     Returns:
         tuple: (best distance, best route, distances from all runs).
     """
-    os.makedirs(f"data/{cooling_strategy}", exist_ok=True)
+    os.makedirs('data', exist_ok=True)
     overall_best_route = []
     overall_best_dist = np.inf
     pars = []
@@ -476,7 +476,7 @@ def main():
 
     # adjust number of runs to something else
     num_runs = 10
-    orig_seed = 34
+    orig_seed = 36
     shuffle_cities = cities[1:]
 
     initial_solution = [1] + list(shuffle_cities) + [1]
@@ -485,13 +485,13 @@ def main():
 
     T_0_values = [400, 40]
     T_min = 1
-    iterations = [100, 10000, 10000000] #, 10000000]
+    iterations = [100, 10000, 10000000] 
 
     all_results = []
-
+    best_overall_route_ofsettings = []
+    best_overall_dist_ofsettings = 0
     for T_0 in T_0_values:
         for iter in iterations:
-            # ITERATIONS = iter
             orig_seed +=1
             print(f"Running with T_0 = {T_0}, T_min = {T_min}")
             best_overall_dist, best_overall_route, distances, best_distances_its, best_routes_its = multiple_iterations(
@@ -507,19 +507,26 @@ def main():
                 "best_routes_runs": best_routes_its
             })
 
+            if len(best_overall_route_ofsettings) == 0:
+                best_overall_route_ofsettings = best_overall_route.copy()
+                best_overall_dist_ofsettings = best_overall_dist
+            elif best_overall_dist < best_overall_dist_ofsettings:
+                best_overall_route_ofsettings = best_overall_route.copy()
+                best_overall_dist_ofsettings = best_overall_dist
+
             df2 = pd.DataFrame(distances).T
             df2.columns = [f"Run {i+1}" for i in range(len(distances))]
             # empty file
             csv_filename = f"data/{cooling_strategy}/distances_{T_0}_{iter}.csv"
-            with open(csv_filename, 'w') as f:
-                pass
-            df2.to_csv(csv_filename, index=False)
+            # with open(csv_filename, 'w') as f:
+            #     pass
+            # df2.to_csv(csv_filename, index=False)
 
     # Convert to DataFrame
     df = pd.DataFrame(all_results)
     df = df[['label', 'best_distance', 'best_distances_runs']]
     csv_filename = f"data/best_dist_{cooling_strategy}.csv"
-    df.to_csv(csv_filename, index=False)
+    # df.to_csv(csv_filename, index=False)
 
     # Print the best distance for each run
     for result in all_results:
@@ -528,9 +535,9 @@ def main():
         print(f"For {label}: Best Distance = {best_distance}")
 
     # Visualize all results
-    print(f"Opitmal tour is: {total_length(opt_tour, cities_cor)}")
+    print(f"Opitmal tour is: {total_length(opt_tour, cities_cor)}, best found tour: {best_overall_dist_ofsettings}")
     visualize.visualize_developing_multiple_lines(all_results)
-    visualize.visualize_route(best_overall_route, opt_tour, cities_cor)
+    visualize.visualize_route(best_overall_route_ofsettings, opt_tour, cities_cor)
 
 if __name__ =="__main__":
     main()

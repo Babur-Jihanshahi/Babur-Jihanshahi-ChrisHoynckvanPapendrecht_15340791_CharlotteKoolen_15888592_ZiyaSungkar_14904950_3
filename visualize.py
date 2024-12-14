@@ -12,7 +12,7 @@ def visualize_route(cities, opt_tour, coordinates):
         cities (list): A list of city names corresponding to the route.
         coordinates (list of tuples): A list of (x, y) coordinates for each city.
     """
-    plt.figure(figsize=(5, 5))
+    plt.figure(figsize=(5, 5), dpi=300)
     order = []
     opt_order = []
     for t, cit in enumerate(cities):
