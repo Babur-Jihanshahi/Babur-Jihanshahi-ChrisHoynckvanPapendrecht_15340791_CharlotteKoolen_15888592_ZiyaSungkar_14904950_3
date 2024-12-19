@@ -231,7 +231,7 @@ def pick_connection(length, seed=None):
 
 def switch(cor1, cor2, cits):
     """
-    Swap two cities in the route and update the cyclic route.
+    Swap two connections in the route and update the cyclic route.
 
     Args:
         cor1 (int): Index of the first connection to swap.
@@ -307,6 +307,10 @@ def logarithmic_cooling(T_0, T_min, k, iters):
     #return max(T, T_min) # not necessary anymore
 
 def accept(dist_i, dist_j, T_k, seed):
+    """
+    accepts based upon the evaluation function, wiht lower distance
+    with probability one, otherwise probability depends on temperature and difference.
+    """
     if dist_j <= dist_i:
         return True
     prob_accept = np.exp(-(dist_j - dist_i)/T_k)
@@ -470,8 +474,6 @@ def main():
     cities, cities_cor = parse_tsp_data("TSP-Configurations/a280.tsp.txt")
     opt_tour = parse_optimal_tour("TSP-Configurations/a280.opt.tour.txt")
 
-    # cities = [1, 2, 3, 4, 5] 
-    # cities_cor = [(0,1), (0,4), (3,3), (2,1), (4,4)]
     opt_tour.append(1)
 
     # adjust number of runs to something else
@@ -518,15 +520,15 @@ def main():
             df2.columns = [f"Run {i+1}" for i in range(len(distances))]
             # empty file
             csv_filename = f"data/{cooling_strategy}/distances_{T_0}_{iter}.csv"
-            # with open(csv_filename, 'w') as f:
-            #     pass
-            # df2.to_csv(csv_filename, index=False)
+            with open(csv_filename, 'w') as f:
+                pass
+            df2.to_csv(csv_filename, index=False)
 
     # Convert to DataFrame
     df = pd.DataFrame(all_results)
     df = df[['label', 'best_distance', 'best_distances_runs']]
     csv_filename = f"data/best_dist_{cooling_strategy}.csv"
-    # df.to_csv(csv_filename, index=False)
+    df.to_csv(csv_filename, index=False)
 
     # Print the best distance for each run
     for result in all_results:

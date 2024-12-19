@@ -49,33 +49,12 @@ def visualize_route(cities, opt_tour, coordinates):
     # Display the plot
     plt.show()
 
-# def visualize_developing(all_distances):
-#     sort_on_index = np.array(all_distances).T
-#     means = np.mean(sort_on_index, axis=1)
-#     variances = np.var(sort_on_index, axis=1)
-
-#     plt.figure(figsize=(4,3))
-#     num_iterations = len(sort_on_index)
-#     iters = np.linspace(0, num_iterations, num_iterations)
-#     plt.plot(iters, means, label="No Cooling Scheme")
-
-#     stdevv =  np.sqrt(variances) 
-#     lower_bound = np.array(means) - stdevv
-#     upper_bound = np.array(means) + stdevv
-#     plt.fill_between(iters, lower_bound, upper_bound, alpha=0.2)
-
-#     # possibly use a logarithmic scale
-#     # plt.xscale("log")
-#     plt.xlim(-100, num_iterations)
-#     plt.grid()
-#     plt.legend()
-#     plt.title("Mean distance of calculated route")
-#     plt.ylabel("Distance")
-#     plt.xlabel("Iteration")
-#     plt.show()
 
 def visualize_developing_multiple_lines(all_results):
+    '''
+    Plots the training behaviour of multiple runs directly after training. 
 
+    '''
     plt.figure(figsize=(8, 6))
 
     for result in all_results:
@@ -115,6 +94,10 @@ def visualize_developing_multiple_lines(all_results):
     plt.show()
 
 def parse_tuple(value):
+    '''
+    (helper funciton)
+    parses data that is being saved in the .csv files
+    '''
     try:
         # Evaluate the string representation of the tuple
         return eval(value)
@@ -123,6 +106,10 @@ def parse_tuple(value):
         return (np.nan, np.nan)  # Return NaN tuple if parsing fails
 
 def visualize_runs(whichrun):
+    '''
+    reading in data from the .csv file rendered with the cooling scheme (specified as whichrun)
+    plots the convergence behavior
+    '''
     group_size = 200
     labels= [r"$T_0: 40$, MC:$100000$", r"$T_0: 40$, MC:$1000$", r"$T_0: 40$, MC:$1$", r"$T_0: 400$, MC:$100000$", r"$T_0: 400$, MC:$1000$", r"$T_0: 400$, MC:$1$"]
     i = 0
@@ -139,17 +126,18 @@ def visualize_runs(whichrun):
             means_df = means_df.T
             variances_df = variances_df.T
 
+            # group and collect data 
             grouped_columns_means = [col.reshape(-1, group_size).tolist() for col in means_df]
             mean_data_col = [[np.mean(group) for group in run] for run in grouped_columns_means]
             var_data_col = [[np.var(group) for group in run] for run in grouped_columns_means]
-            # grouped_columns_vars = [col.reshape(-1, group_size).var() for col in means_df]
+
             column_vars = [col.reshape(-1, group_size).tolist() for col in variances_df]
             mean_column_vars = [[np.mean(group) + var_data_col[j][i] for i,group in enumerate(run)] for j,run in enumerate(column_vars)]
-            print(len(mean_column_vars))
-
+          
+            # calculate mean and total variance
             mean_between_runs = np.mean(mean_data_col, axis=0)
             var_between_runs = np.mean(mean_column_vars, axis=0) + np.var(mean_data_col, axis=0)
-            print(var_between_runs)
+ 
             
             # Create grouped x-axis
             grouped_iters = np.linspace(0, 10, len(mean_between_runs))
@@ -173,7 +161,7 @@ def visualize_runs(whichrun):
     plt.xlim(0, 10)
     plt.grid()
     plt.legend(fontsize=8)
-    plt.title(f"Convergence Behavriour {whichrun}")
+    plt.title(f"Convergence Behavior {whichrun}")
     plt.ylabel(r"Distance $\times 10^3$")
     plt.xlabel(r"Iteration $\times 10^6$")
     plt.show()
@@ -181,5 +169,6 @@ def visualize_runs(whichrun):
 
 
 if __name__ == "__main__":
+    #Choose Exponential, Linear or Logarithmic
     visualize_runs("Exponential")
     
