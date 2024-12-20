@@ -18,45 +18,56 @@ def compare_between_strategies(strategies, output_file):
     """
     with open(output_file, "a") as f:
         f.write("-" * 80 + "\n")
-        f.write("Performing statistical tests between different cooling strategies for H_0^1 (Iterations=10,000,000)\n\n")
+        f.write("Performing statistical tests between different cooling strategies for H_0^1\n\n")
 
-        # Iterate through each T_0 value
-        all_t0_values = set()
+        # Iterate through each unique iteration bound
+        all_iterations = set()
         for data in strategies.values():
-
-            # Filter for Iterations=10,000,000
+            # Extract unique iteration bounds
             data['iterations'] = data['label'].apply(lambda x: int(x.split('Iterations=')[-1]))
-            filtered_data = data[data['iterations'] == 10_000_000]
-            all_t0_values.update(filtered_data['label'].apply(lambda x: x.split(',')[0]))
+            all_iterations.update(data['iterations'].unique())
 
-        all_t0_values = sorted(list(all_t0_values))
+        all_iterations = sorted(list(all_iterations))
 
-        for t0 in all_t0_values:
-            strategy_names = list(strategies.keys())
-            for i in range(len(strategy_names)):
-                for j in range(i + 1, len(strategy_names)):
-                    strat1 = strategy_names[i]
-                    strat2 = strategy_names[j]
+        for iteration_bound in all_iterations:
+            f.write(f"Iteration Bound: {iteration_bound}\n\n")
 
-                    # Filter groups based on T_0 and Iterations=10,000,000
-                    group1 = strategies[strat1]
-                    group1 = group1[group1['iterations'] == 10_000_000]
-                    group1 = group1[group1['label'].str.contains(f"^{t0},")]['best_distances_runs']
+            # Iterate through each T_0 value
+            all_t0_values = set()
+            for data in strategies.values():
+                filtered_data = data[data['iterations'] == iteration_bound]
+                all_t0_values.update(filtered_data['label'].apply(lambda x: x.split(',')[0]))
 
-                    group2 = strategies[strat2]
-                    group2 = group2[group2['iterations'] == 10_000_000]
-                    group2 = group2[group2['label'].str.contains(f"^{t0},")]['best_distances_runs']
+            all_t0_values = sorted(list(all_t0_values))
 
-                    # Perform t-test
-                    t_stat, p_value = ttest_ind(group1, group2, equal_var=False)
+            for t0 in all_t0_values:
+                strategy_names = list(strategies.keys())
+                for i in range(len(strategy_names)):
+                    for j in range(i + 1, len(strategy_names)):
+                        strat1 = strategy_names[i]
+                        strat2 = strategy_names[j]
 
-                    # Save results
-                    hypothesis = f"H_0^1: E(X)_{strat1},T_0={t0} = E(X)_{strat2},T_0={t0}"
-                    f.write(f"Group 1 ({strat1}, T_0={t0}): Mean = {group1.mean()}, Variance = {group1.var()}, Values = {group1.tolist()}\n")
-                    f.write(f"Group 2 ({strat2}, T_0={t0}): Mean = {group2.mean()}, Variance = {group2.var()}, Values = {group2.tolist()}\n")
-                    f.write(f"Hypothesis: {hypothesis}\n")
-                    f.write(f"T-statistic: {t_stat:.4f}, P-value: {p_value:.4e}\n")
-                    f.write(f"Reject H_0: {'True' if p_value < 0.05 else 'False'}\n\n")
+                        # Filter groups based on T_0 and current iteration bound
+                        group1 = strategies[strat1]
+                        group1 = group1[group1['iterations'] == iteration_bound]
+                        group1 = group1[group1['label'].str.contains(f"^{t0},")]['best_distances_runs']
+
+                        group2 = strategies[strat2]
+                        group2 = group2[group2['iterations'] == iteration_bound]
+                        group2 = group2[group2['label'].str.contains(f"^{t0},")]['best_distances_runs']
+
+                        # Perform t-test
+                        t_stat, p_value = ttest_ind(group1, group2, equal_var=False)
+
+                        # Save results
+                        hypothesis = f"H_0^1: E(X)_{strat1},T_0={t0},Iterations={iteration_bound} = E(X)_{strat2},T_0={t0},Iterations={iteration_bound}"
+                        f.write(f"Group 1 ({strat1}, T_0={t0}): Mean = {group1.mean()}, Variance = {group1.var()}, Values = {group1.tolist()}\n")
+                        f.write(f"Group 2 ({strat2}, T_0={t0}): Mean = {group2.mean()}, Variance = {group2.var()}, Values = {group2.tolist()}\n")
+                        f.write(f"Hypothesis: {hypothesis}\n")
+                        f.write(f"T-statistic: {t_stat:.4f}, P-value: {p_value:.4e}\n")
+                        f.write(f"Reject H_0: {'True' if p_value < 0.05 else 'False'}\n\n")
+
+
 
 def compare_within_strategy_chain_length(strategies, output_file):
     """
